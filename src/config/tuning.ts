@@ -198,8 +198,65 @@ export const tuning = {
     /** Ring on the zip target under the crosshair (fills up during the cooldown). */
     showZipTarget: true,
 
+    // Look and launch (E): the rope pulls the hero onto the ledge under the crosshair.
+    /** Farthest ledge, m. */
+    launchRange: 80,
+    /** km/h. */
+    launchSpeed: 140,
+    launchCooldown: 0.35,
+    /** Hop from the end of the pull onto the ledge, s. */
+    perchHopTime: 0.2,
+    /** Space on a ledge: leap forward (m/s, along the camera) and up (m). */
+    perchLeapForward: 13,
+    perchLeapHeight: 2.6,
+    /** Glow on the ledge under the crosshair. */
+    showLedgeHighlight: true,
+
     /** Show where the next rope will attach while in the air. */
     showAnchorPreview: true,
+  },
+
+  /** Titan mode: slow but strong (BRIEF.md §3.2). */
+  titan: {
+    /** These replace the Movement values while Titan is on (speeds km/h, as there). */
+    movement: {
+      runSpeed: 32,
+      sprintSpeed: 48,
+      runAccelTime: 0.55,
+      sprintAccelTime: 0.9,
+      brakeTime: 0.32,
+      turnGrip: 6,
+      jumpHeight: 2.2,
+      gravity: 30,
+      airControl: 7,
+      climbSpeed: 9,
+      climbSprintSpeed: 12,
+      climbSideSpeed: 6,
+      softLandSpeed: 22,
+      heroLandSpeed: 18,
+      heroMaxRunSpeed: 400,
+      rollMinSpeed: 400,
+      heroLandKeep: 0.05,
+    },
+    /** Charged super jump: seconds to full charge and crouched walk speed while charging (km/h). */
+    chargeTime: 0.9,
+    chargeWalkSpeed: 8,
+    /** Jump height for a tap and for a full charge, m. */
+    superJumpMin: 3,
+    superJumpMax: 32,
+    /** Forward push at full charge, m/s. */
+    superJumpForward: 10,
+    /** Ground pound (C in the air): hang before the slam (s) and slam speed (m/s). */
+    poundHang: 0.16,
+    poundSpeed: 62,
+    /** No pound closer than this to the ground, m. */
+    poundMinHeight: 2.5,
+    /** Shockwave: radius (m), push (m/s) and damage. */
+    shockRadius: 15,
+    shockForce: 24,
+    shockDamage: 45,
+    /** A heavy landing also sends a smaller shockwave above this impact, m/s. */
+    landShockImpact: 22,
   },
 
   camera: {
@@ -220,23 +277,52 @@ export const tuning = {
     /** radians per pixel. */
     mouseSensitivity: 0.0022,
     invertY: false,
-    /** Pitch limits, radians. Positive = camera above looking down. */
-    minPitch: -0.55,
+    /**
+     * Pitch limits, radians. Positive = camera above looking down. Looking up from below is kept
+     * small: low camera angles between buildings were disorienting (stage 1A feedback).
+     */
+    minPitch: -0.22,
     maxPitch: 1.25,
+    /** Pitch the camera drifts back to while the mouse rests, radians. */
+    restPitch: 0.32,
+    /** The camera stays this high above the street or roof below it (rises instead of dipping), m. */
+    groundClearance: 1.1,
+    /** Mouse wheel: arm length multipliers for near and far (mid = 1). */
+    zoomNear: 0.62,
+    zoomFar: 1.5,
+    /** Framing by state, as arm multipliers and extra height (m) / pitch (rad). */
+    groundDistance: 0.85,
+    swingDistance: 1.3,
+    swingHeight: 1.4,
+    swingPitch: 0.1,
+    airDistance: 1.15,
+    /** Wall run: camera slides this far away from the wall, m. */
+    wallRunSide: 1.8,
+    /** Arm multiplier while a fight is on nearby. */
+    combatDistance: 1.25,
+    /** How fast the framing follows the state, 1/s. */
+    framingDamping: 2.5,
     /** Camera roll while swinging and wall running, degrees. */
     swingRoll: 7,
     wallRunRoll: 12,
     rollDamping: 5,
     /** Look ahead along the velocity, seconds of travel (capped at 5 m). */
     lookAhead: 0.3,
-    /** Turn the camera toward the direction of travel when the mouse is idle. */
+    /** Slowly turn behind the direction of travel when the mouse rests this long (s). */
     autoAlign: true,
-    autoAlignDelay: 0.8,
-    autoAlignRate: 1.4,
+    autoAlignDelay: 1.5,
+    autoAlignRate: 1.1,
     /** Camera keeps this distance from walls, m. */
     collisionRadius: 0.3,
-    /** How fast the arm grows back after an obstruction, 1/s. */
+    /** Arm speeds when it has to shorten (camera inside a building) and when it grows back, 1/s. */
+    collisionPullIn: 14,
     collisionRecover: 3,
+    /**
+     * Buildings between the camera and the hero turn see-through (dithered) instead of the camera
+     * jumping: 0 = off … 1 = fully open. Radius of the see-through tunnel at the hero, m.
+     */
+    xray: 0.85,
+    xrayRadius: 1.3,
     /** Extra arm length while climbing, m. */
     climbExtraDistance: 2.5,
     shake: true,
@@ -350,6 +436,7 @@ export const tuning = {
 
 export type Tuning = typeof tuning;
 export type MovementTuning = Tuning['movement'];
+export type TitanTuning = Tuning['titan'];
 export type RopeTuning = Tuning['rope'];
 export type CameraTuning = Tuning['camera'];
 export type CityTuning = Tuning['city'];

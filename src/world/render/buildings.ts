@@ -2,7 +2,7 @@ import { BoxGeometry, Color, InstancedBufferAttribute, InstancedMesh, Matrix4, S
 import { palette } from '../../config/palette';
 import type { Tuning } from '../../config/tuning';
 import { type Building, parapets } from '../cityGen';
-import { GLSL_COMMON, type SceneLighting } from './lighting';
+import { GLSL_COMMON, GLSL_XRAY, type SceneLighting } from './lighting';
 
 const vertexShader = /* glsl */ `
   attribute vec3 aColor;
@@ -32,6 +32,7 @@ const vertexShader = /* glsl */ `
 
 const fragmentShader = /* glsl */ `
   ${GLSL_COMMON}
+  ${GLSL_XRAY}
   uniform float windowGlow;
   uniform float blinkShare;
   uniform vec3 windowColors[8];
@@ -46,6 +47,7 @@ const fragmentShader = /* glsl */ `
   #include <fog_pars_fragment>
 
   void main() {
+    xray(vWorldPos);
     vec3 n = normalize(vNormal);
     // Upper floors catch more of the glowing sky; the street level sits in shadow.
     float heightLight = mix(0.5, 1.2, smoothstep(0.0, 170.0, vWorldPos.y));

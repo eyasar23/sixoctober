@@ -1,6 +1,7 @@
 /** Helpers for movement tests: build a small world, script input, step the simulation. */
 import { tuning, type Tuning } from '../config/tuning';
-import { MODES } from '../modes/modeBand';
+import { grappleMode } from '../modes';
+import type { ModeDefinition } from '../modes/modeBand';
 import { CollisionWorld, ANCHORABLE, CLIMBABLE } from '../world/collision';
 import { createSimInput, PlayerSim, type SimEvent, type SimInput } from './playerSim';
 
@@ -18,8 +19,8 @@ export function makeWorld(boxes: Array<[number, number, number, number, number, 
   return world;
 }
 
-export function makeSim(world: CollisionWorld, t: Tuning = makeTuning()): PlayerSim {
-  return new PlayerSim(world, t, MODES.grapple.abilities, 2000);
+export function makeSim(world: CollisionWorld, t: Tuning = makeTuning(), mode: ModeDefinition = grappleMode): PlayerSim {
+  return new PlayerSim(world, t, mode, 2000);
 }
 
 export interface ScriptedInput {
@@ -29,6 +30,7 @@ export interface ScriptedInput {
   jumpHeld?: boolean;
   jumpPressed?: boolean;
   divePressed?: boolean;
+  launchPressed?: boolean;
   /** Camera looks along −Z unless set. */
   camYaw?: number;
   aimOrigin?: [number, number, number];
@@ -81,6 +83,7 @@ function fill(input: SimInput, s: ScriptedInput): void {
   input.jumpHeld = s.jumpHeld ?? false;
   input.jumpPressed = s.jumpPressed ?? false;
   input.divePressed = s.divePressed ?? false;
+  input.launchPressed = s.launchPressed ?? false;
   input.respawnPressed = false;
   if (s.aimOrigin) input.aimOrigin.set(...s.aimOrigin);
   if (s.aimDir) input.aimDir.set(...s.aimDir).normalize();

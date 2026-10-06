@@ -7,6 +7,7 @@ import { GameLoop } from './core/loop';
 import { BlobShadow, LandingDust } from './fx/heroFx';
 import { PostFx } from './fx/postFx';
 import { tKey } from './i18n';
+import { MODE_LIST } from './modes';
 import { ModeBand } from './modes/modeBand';
 import { FollowCamera } from './player/followCamera';
 import { createAnchorResult, createZipTarget, findAnchor, findZipTarget } from './player/grapple';
@@ -61,8 +62,8 @@ const traffic = createTraffic(city, lighting, tuning);
 scene.add(sky, createSkyline(city.seed), ...lights.lights, buildings.mesh, streets.group, props.group, traffic.mesh);
 
 // Hero ----------------------------------------------------------------------------------------
-const modeBand = new ModeBand('grapple');
-const sim = new PlayerSim(world, tuning, modeBand.abilities, city.halfSize);
+const modeBand = new ModeBand(MODE_LIST);
+const sim = new PlayerSim(world, tuning, modeBand.mode, city.halfSize);
 sim.spawn(city.spawn.x, city.spawn.y, city.spawn.z, city.spawn.yaw);
 const hero = new HeroFigure(tuning);
 const rope = new RopeVisual();
@@ -71,7 +72,7 @@ const dust = new LandingDust();
 const applyMode = (): void => {
   hero.setBandColor(modeBand.mode.glow);
   rope.setColor(modeBand.mode.glow);
-  sim.abilities = modeBand.abilities;
+  sim.setMode(modeBand.mode);
 };
 modeBand.onChange(applyMode);
 applyMode();
@@ -150,6 +151,7 @@ const buildSimInput = (): void => {
   simInput.jumpHeld = input.isHeld('Space');
   simInput.shiftHeld = input.shiftHeld;
   simInput.divePressed = input.consumePress('KeyC');
+  simInput.launchPressed = input.consumePress('KeyE');
   simInput.respawnPressed = input.consumePress('KeyR');
   simInput.aimOrigin.copy(camera.position);
   camera.getWorldDirection(simInput.aimDir);
@@ -244,6 +246,7 @@ let fpsTime = 0;
 let fps = 0;
 const mouse = { x: 0, y: 0 };
 const renderPosition = new Vector3();
+const heroChest = new Vector3();
 const hand = new Vector3();
 const bob = new Vector3();
 const lookDir = new Vector3();
@@ -267,6 +270,11 @@ const loop = new GameLoop(
     render(alpha, frameDt) {
       const frameStarted = testMode ? performance.now() : 0;
       if (input.consumePress('KeyT')) slowMo = !slowMo;
+      if (input.consumePress('Tab')) modeBand.next();
+      if (input.consumePress('Digit1')) modeBand.select(0);
+      if (input.consumePress('Digit2')) modeBand.select(1);
+      const wheel = input.takeWheelStep();
+      if (wheel !== 0) cameraRig.zoomStep(wheel);
       hitStop = Math.max(0, hitStop - frameDt);
       loop.timeScale = hitStop > 0 ? 0.04 : slowMo ? tuning.debug.slowMoScale : 1;
       const worldDt = frameDt * loop.timeScale;
@@ -280,10 +288,12 @@ const loop = new GameLoop(
       const swinging = sim.state === 'swinging';
       cameraRig.update(
         frameDt,
-        { position: renderPosition, velocity: sim.velocity, state: sim.state, wallNormal: sim.wallNormal, ropeAnchor: swinging ? sim.rope.anchor : null },
+        { position: renderPosition, velocity: sim.velocity, state: sim.state, wallNormal: sim.wallNormal, ropeAnchor: swinging ? sim.rope.anchor : null, combat: 0 },
         world,
       );
       sky.position.copy(camera.position);
+      heroChest.set(renderPosition.x, renderPosition.y + 1.1, renderPosition.z);
+      lighting.setXray(camera.position, heroChest, tuning.camera.xrayRadius, tuning.camera.xray);
 
       const ropeTarget = swinging ? sim.rope.anchor : sim.state === 'zip' ? sim.zip.attach : null;
       hero.update(worldDt, {

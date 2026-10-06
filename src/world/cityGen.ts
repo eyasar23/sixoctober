@@ -1,7 +1,7 @@
 import { palette } from '../config/palette';
 import type { CityTuning } from '../config/tuning';
 import { createRng, type Rng } from '../core/random';
-import { ANCHORABLE, CLIMBABLE, CollisionWorld } from './collision';
+import { ANCHORABLE, CLIMBABLE, type CollisionWorld, PERCHABLE } from './collision';
 
 /**
  * City v1 as pure data (no three.js): roads, blocks, buildings, roof props, street furniture,
@@ -261,13 +261,13 @@ export function parapets(b: Building): Array<[number, number, number, number, nu
 /** Fills a collision world with the city's solid parts. */
 export function buildCollision(city: CityData, world: CollisionWorld): void {
   for (const b of city.buildings) {
-    world.addBox(b.x - b.width / 2, b.baseY, b.z - b.depth / 2, b.x + b.width / 2, b.topY, b.z + b.depth / 2, ANCHORABLE | CLIMBABLE);
-    for (const [x0, y0, z0, x1, y1, z1] of parapets(b)) world.addBox(x0, y0, z0, x1, y1, z1, 0);
+    world.addBox(b.x - b.width / 2, b.baseY, b.z - b.depth / 2, b.x + b.width / 2, b.topY, b.z + b.depth / 2, ANCHORABLE | CLIMBABLE | PERCHABLE);
+    for (const [x0, y0, z0, x1, y1, z1] of parapets(b)) world.addBox(x0, y0, z0, x1, y1, z1, PERCHABLE);
   }
   for (const s of city.blocks) world.addBox(s.minX, 0, s.minZ, s.maxX, SLAB_HEIGHT, s.maxZ, 0);
   for (const p of city.roofProps) {
     if (p.kind === 'antenna') continue;
-    const flags = p.kind === 'tank' ? ANCHORABLE | CLIMBABLE : CLIMBABLE;
+    const flags = (p.kind === 'tank' ? ANCHORABLE | CLIMBABLE : CLIMBABLE) | PERCHABLE;
     world.addBox(p.x - p.sx / 2, p.y, p.z - p.sz / 2, p.x + p.sx / 2, p.y + p.sy, p.z + p.sz / 2, flags);
   }
   // Invisible walls keep the hero inside the city.

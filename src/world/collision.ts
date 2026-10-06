@@ -8,6 +8,8 @@
 export const ANCHORABLE = 1;
 /** Wall run and wall climb are allowed on this box. */
 export const CLIMBABLE = 2;
+/** Its top edges are ledges the hero can launch onto and perch on (E). */
+export const PERCHABLE = 4;
 
 export interface Box {
   minX: number;

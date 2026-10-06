@@ -1,8 +1,8 @@
 import { MathUtils, Vector3 } from 'three';
-import { KMH, type Tuning } from '../config/tuning';
-import type { MovementAbilities } from '../modes/modeBand';
+import { KMH, type MovementTuning, type Tuning } from '../config/tuning';
+import type { ModeDefinition, MovementAbilities } from '../modes/modeBand';
 import { CLIMBABLE, type Box, type CollisionWorld, createHit } from '../world/collision';
-import { createAnchorResult, createZipTarget, findAnchor, findZipTarget } from './grapple';
+import { createAnchorResult, createLedgeTarget, createZipTarget, findAnchor, findLedge, findZipTarget } from './grapple';
 import { type BodyShape, createContacts, moveAndSlide, probeGround, probeWall, SKIN } from './mover';
 
 const DEG = Math.PI / 180;
@@ -11,6 +11,7 @@ const ACCEL_CURVE = 0.6;
 /** Keeps the time to reach top speed equal to the tuned accel time despite the curve. */
 const ACCEL_CURVE_GAIN = Math.atanh(Math.sqrt(ACCEL_CURVE)) / Math.sqrt(ACCEL_CURVE);
 const DIVE_BUFFER = 0.12;
+const LAUNCH_BUFFER = 0.12;
 const SAFE_POINT_INTERVAL = 1;
 const MAX_SAFE_POINTS = 10;
 
@@ -23,9 +24,34 @@ export type MoveState =
   | 'wallClimb'
   | 'mantle'
   | 'dive'
-  | 'landing';
+  | 'landing'
+  /** Crouched on a ledge after a look-and-launch (E). */
+  | 'perch'
+  /** Titan: crouched, charging a super jump (Space held). */
+  | 'charge'
+  /** Titan: ground pound, a short hang then the slam. */
+  | 'pound'
+  /** A fight move (strike, counter, rope pull, being hit): the combat system drives it. */
+  | 'action'
+  /** Knocked out: lies still until the combat system respawns the hero. */
+  | 'down';
 
 export type LandingKind = 'soft' | 'crouch' | 'roll' | 'hero';
+
+export type ActionKind = 'punch' | 'kick' | 'counter' | 'pull' | 'hurt';
+
+/** A fight move as the combat system orders it; the body lunges and the lunge fades out. */
+export interface ActionSpec {
+  kind: ActionKind;
+  duration: number;
+  /** Lunge velocity at the start, m/s. */
+  vx: number;
+  vz: number;
+  /** Facing during the move. */
+  yaw: number;
+  /** Combo step 1–3 (picks the pose). */
+  step: number;
+}
 
 /** One simulation step's input, already turned into world space by the camera. */
 export interface SimInput {
@@ -42,8 +68,10 @@ export interface SimInput {
   jumpHeld: boolean;
   shiftHeld: boolean;
   divePressed: boolean;
+  /** E: launch onto the ledge under the crosshair. */
+  launchPressed: boolean;
   respawnPressed: boolean;
-  /** Camera position and full 3D look direction, for zip aiming. */
+  /** Camera position and full 3D look direction, for zip and ledge aiming. */
   readonly aimOrigin: Vector3;
   readonly aimDir: Vector3;
 }
@@ -60,6 +88,7 @@ export function createSimInput(): SimInput {
     jumpHeld: false,
     shiftHeld: false,
     divePressed: false,
+    launchPressed: false,
     respawnPressed: false,
     aimOrigin: new Vector3(),
     aimDir: new Vector3(0, 0, -1),
@@ -80,6 +109,15 @@ export type SimEvent =
   | { type: 'mantle' }
   | { type: 'diveStart' }
   | { type: 'nearMiss' }
+  | { type: 'ledgeLaunch' }
+  | { type: 'noLedge' }
+  | { type: 'perch' }
+  | { type: 'perchLeap' }
+  | { type: 'chargeStart' }
+  | { type: 'superJump'; charge: number }
+  | { type: 'poundStart' }
+  /** Titan impact: pushes and hurts what is around (enemies, cars). */
+  | { type: 'shockwave'; x: number; y: number; z: number; radius: number; force: number; damage: number; pound: boolean }
   | { type: 'respawn' };
 
 /**
@@ -88,6 +126,8 @@ export type SimEvent =
  */
 export class PlayerSim {
   state: MoveState = 'grounded';
+  /** Movement values in use: tuning.movement with the mode's replacements (refreshed every step). */
+  readonly mv: MovementTuning;
   /** Seconds in the current state. */
   stateTime = 0;
   readonly position = new Vector3();
@@ -116,6 +156,14 @@ export class PlayerSim {
     rightZ: 0,
   };
   readonly zip = createZipTarget();
+  /** What the current zip is: a crosshair zip or a ledge launch (ends perched). */
+  zipKind: 'zip' | 'ledge' = 'zip';
+  /** The ledge being launched to / perched on. */
+  readonly ledge = createLedgeTarget();
+  /** Titan charge, 0..1 (also while not charging: the last charge). */
+  charge = 0;
+  /** The fight move in progress (state 'action'). */
+  readonly action: ActionSpec = { kind: 'punch', duration: 0, vx: 0, vz: 0, yaw: 0, step: 1 };
   readonly wallNormal = new Vector3();
   wallBox: Box | null = null;
   /** Things that happened since the renderer last emptied this list. */
@@ -126,6 +174,7 @@ export class PlayerSim {
   private readonly hit = createHit();
   private readonly anchor = createAnchorResult();
   private readonly zipFound = createZipTarget();
+  private readonly ledgeFound = createLedgeTarget();
   private readonly tmp = new Vector3();
   private readonly spawnPoint = new Vector3();
   private spawnYaw = 0;
@@ -133,6 +182,10 @@ export class PlayerSim {
   private coyoteTimer = 0;
   private jumpBufferTimer = 0;
   private diveBufferTimer = 0;
+  private launchBufferTimer = 0;
+  private launchCooldown = 0;
+  private mantleToPerch = false;
+  private poundSlam = false;
   private jumpCutArmed = false;
   private airTime = 0;
   private timeSinceRelease = 99;
@@ -155,6 +208,7 @@ export class PlayerSim {
   private readonly mantleFrom = new Vector3();
   private readonly mantleTo = new Vector3();
   private readonly mantleExit = new Vector3();
+  private mantleDuration = 0.3;
   private nearMissTimer = 0;
   private readonly safePoints: Vector3[] = [];
   private safeTimer = 0;
@@ -162,11 +216,93 @@ export class PlayerSim {
   constructor(
     private readonly world: CollisionWorld,
     readonly tuning: Tuning,
-    public abilities: MovementAbilities,
+    private modeDef: ModeDefinition,
     /** Half size of the playable square, m. */
     private readonly bounds: number,
   ) {
     this.shape = { halfWidth: tuning.movement.bodyRadius, halfHeight: tuning.movement.bodyHeight / 2 };
+    this.mv = { ...tuning.movement };
+    this.refreshMovement();
+  }
+
+  get mode(): ModeDefinition {
+    return this.modeDef;
+  }
+
+  get abilities(): MovementAbilities {
+    return this.modeDef.abilities;
+  }
+
+  /**
+   * Switches the mode mid-move. Velocity is never touched: momentum carries through, and a move
+   * the new mode cannot do turns into a fall (a swing lets go of the rope; a dive becomes a
+   * ground pound when the new mode has one).
+   */
+  setMode(mode: ModeDefinition): void {
+    this.modeDef = mode;
+    this.refreshMovement();
+    const a = mode.abilities;
+    switch (this.state) {
+      case 'swinging':
+        if (!a.swing) {
+          this.detachRope(false);
+          this.timeSinceRelease = 0;
+          this.airTime = 0;
+          this.setState('airborne');
+        }
+        break;
+      case 'zip':
+        if ((this.zipKind === 'zip' && !a.zip) || (this.zipKind === 'ledge' && !a.ledgeLaunch)) this.setState('airborne');
+        break;
+      case 'wallRun':
+        if (!a.wallRun) {
+          this.markSameWall();
+          this.setState('airborne');
+        }
+        break;
+      case 'wallClimb':
+        if (!a.wallClimb) this.setState('airborne');
+        break;
+      case 'dive':
+        if (!a.dive) {
+          if (a.groundPound) this.startPound(true);
+          else this.setState('airborne');
+        }
+        break;
+      case 'pound':
+        if (!a.groundPound) this.setState('airborne');
+        break;
+      case 'charge':
+        if (!a.chargedJump) this.setState('grounded');
+        break;
+      default:
+        break;
+    }
+  }
+
+  /** Starts a fight move (from the combat system). Returns false when the body is busy. */
+  startAction(spec: ActionSpec): boolean {
+    if (!canAct(this.state) && !(spec.kind === 'hurt' && this.state !== 'down')) return false;
+    Object.assign(this.action, spec);
+    if (this.state === 'swinging') this.detachRope(false);
+    this.velocity.x = spec.vx;
+    this.velocity.z = spec.vz;
+    this.yaw = spec.yaw;
+    this.setState('action');
+    return true;
+  }
+
+  /** Knocked out: the hero drops and lies still until respawnAt(). */
+  knockOut(): void {
+    this.detachRope(false);
+    this.setState('down');
+  }
+
+  /** Back on the feet at a point (respawn after a knockout). */
+  respawnAt(x: number, y: number, z: number, yaw: number): void {
+    this.tmp.set(x, y, z);
+    this.resetAt(this.tmp, yaw);
+    this.events.push({ type: 'respawn' });
   }
 
   get speed(): number {
@@ -201,6 +337,7 @@ export class PlayerSim {
 
   step(dt: number, input: SimInput): void {
     this.previousPosition.copy(this.position);
+    this.refreshMovement();
     this.tickTimers(dt, input);
     if (input.respawnPressed) {
       this.respawn();
@@ -225,6 +362,11 @@ export class PlayerSim {
   // State updates. Each returns true when it moved the body this step.
 
   private update(dt: number, input: SimInput): boolean {
+    // E: launch onto the ledge under the crosshair, from almost any move.
+    if (this.launchBufferTimer > 0 && canLaunch(this.state) && this.abilities.ledgeLaunch && this.launchCooldown <= 0) {
+      this.launchBufferTimer = 0;
+      if (this.tryLedgeLaunch(input)) return false;
+    }
     switch (this.state) {
       case 'grounded':
         return this.updateGrounded(dt, input);
@@ -244,13 +386,24 @@ export class PlayerSim {
         return this.updateWallClimb(dt, input);
       case 'mantle':
         return this.updateMantle(dt);
+      case 'perch':
+        return this.updatePerch(dt, input);
+      case 'charge':
+        return this.updateCharge(dt, input);
+      case 'pound':
+        return this.updatePound(dt);
+      case 'action':
+        return this.updateAction(dt);
+      case 'down':
+        return this.updateDown(dt);
     }
   }
 
   private updateGrounded(dt: number, input: SimInput): boolean {
-    const m = this.tuning.movement;
+    const m = this.mv;
     if (this.jumpBufferTimer > 0) {
-      this.jump();
+      if (this.abilities.chargedJump) this.startCharge();
+      else this.jump();
       return false;
     }
     const wishLength = Math.min(Math.hypot(input.moveX, input.moveZ), 1);
@@ -282,10 +435,11 @@ export class PlayerSim {
   }
 
   private updateLanding(dt: number, input: SimInput): boolean {
-    const m = this.tuning.movement;
+    const m = this.mv;
     const locked = this.landingKind === 'hero' && this.stateTime < m.heroLandCancel;
     if (!locked && this.jumpBufferTimer > 0) {
-      this.jump();
+      if (this.abilities.chargedJump) this.startCharge();
+      else this.jump();
       return false;
     }
     const wishLength = Math.min(Math.hypot(input.moveX, input.moveZ), 1);
@@ -314,7 +468,7 @@ export class PlayerSim {
   }
 
   private updateAirborne(dt: number, input: SimInput): boolean {
-    const m = this.tuning.movement;
+    const m = this.mv;
     this.airTime += dt;
     if (this.jumpBufferTimer > 0 && this.coyoteTimer > 0) this.jump();
     if (this.jumpCutArmed) {
@@ -325,9 +479,15 @@ export class PlayerSim {
         this.jumpCutArmed = false;
       }
     }
-    if (this.diveBufferTimer > 0 && this.abilities.dive) {
-      this.startDive();
-      return false;
+    if (this.diveBufferTimer > 0) {
+      if (this.abilities.dive) {
+        this.startDive();
+        return false;
+      }
+      if (this.abilities.groundPound && this.heightAboveGround() >= this.tuning.titan.poundMinHeight) {
+        this.startPound(false);
+        return false;
+      }
     }
     if (this.jumpBufferTimer > 0 && this.abilities.zip && this.zipCooldown <= 0 && this.tryZip(input)) return false;
     if (input.shiftHeld && this.abilities.swing && this.readyToAttach() && this.tryAttach(input)) return false;
@@ -345,7 +505,7 @@ export class PlayerSim {
   }
 
   private updateSwinging(dt: number, input: SimInput): boolean {
-    const m = this.tuning.movement;
+    const m = this.mv;
     const r = this.tuning.rope;
     if (!input.shiftHeld) {
       this.releaseRope(true);
@@ -468,6 +628,10 @@ export class PlayerSim {
       return true;
     }
     const blocked = this.contacts.wall || this.contacts.ceiling || this.contacts.ground;
+    if (this.zipKind === 'ledge' && (blocked || this.stateTime > this.zipDuration) && this.position.distanceTo(z.destination) < 4) {
+      this.arriveZip();
+      return true;
+    }
     if (blocked || this.stateTime > this.zipDuration) {
       // Something was in the way: stop the zip and keep whatever momentum is left.
       this.zipCooldown = this.tuning.rope.zipCooldown;
@@ -479,7 +643,7 @@ export class PlayerSim {
   }
 
   private updateDive(dt: number, input: SimInput): boolean {
-    const m = this.tuning.movement;
+    const m = this.mv;
     if (this.diveBufferTimer > 0 && this.stateTime > 0.1) {
       // C again ends the dive.
       this.diveBufferTimer = 0;
@@ -511,7 +675,7 @@ export class PlayerSim {
   }
 
   private updateWallRun(dt: number, input: SimInput): boolean {
-    const m = this.tuning.movement;
+    const m = this.mv;
     const n = this.wallNormal;
     if (this.jumpBufferTimer > 0) {
       this.wallJump(this.wallRunDir.x * this.wallRunSpeedNow * m.wallJumpKeep, this.wallRunDir.z * this.wallRunSpeedNow * m.wallJumpKeep, m.wallJumpOut, m.wallJumpUp);
@@ -549,7 +713,7 @@ export class PlayerSim {
   }
 
   private updateWallClimb(dt: number, input: SimInput): boolean {
-    const m = this.tuning.movement;
+    const m = this.mv;
     const n = this.wallNormal;
     // Sideways axis along the wall, matching the camera's right.
     let sideX = n.z;
@@ -584,8 +748,7 @@ export class PlayerSim {
   }
 
   private updateMantle(dt: number): boolean {
-    const m = this.tuning.movement;
-    const t = Math.min((this.stateTime + dt) / m.mantleTime, 1);
+    const t = Math.min((this.stateTime + dt) / Math.max(this.mantleDuration, 1e-3), 1);
     const rise = MathUtils.smoothstep(t, 0, 0.6);
     const forward = MathUtils.smoothstep(t, 0.45, 1);
     this.position.set(
@@ -595,11 +758,154 @@ export class PlayerSim {
     );
     if (t >= 1) {
       this.position.copy(this.mantleTo);
-      this.depenetrate();
       this.velocity.copy(this.mantleExit);
       this.onGround = true;
-      this.setState('grounded');
+      if (this.mantleToPerch) {
+        this.yaw = yawOf(this.ledge.normal.x, this.ledge.normal.z);
+        this.events.push({ type: 'perch' });
+        this.setState('perch');
+      } else {
+        this.depenetrate();
+        this.setState('grounded');
+      }
     }
+    return true;
+  }
+
+  private updatePerch(dt: number, input: SimInput): boolean {
+    const r = this.tuning.rope;
+    this.velocity.set(0, 0, 0);
+    this.onGround = true;
+    if (this.jumpBufferTimer > 0) {
+      // Leap off the ledge along the camera, ready for a swing.
+      this.jumpBufferTimer = 0;
+      const n = this.ledge.normal;
+      this.velocity.set(
+        input.camForwardX * r.perchLeapForward + n.x * 2,
+        Math.sqrt(2 * this.mv.gravity * r.perchLeapHeight),
+        input.camForwardZ * r.perchLeapForward + n.z * 2,
+      );
+      this.airTime = 0;
+      this.jumpCutArmed = false;
+      this.events.push({ type: 'perchLeap' });
+      this.setState('airborne');
+      return false;
+    }
+    if (this.diveBufferTimer > 0 && this.abilities.dive) {
+      this.velocity.set(input.camForwardX * 9, -2, input.camForwardZ * 9);
+      this.startDive();
+      return false;
+    }
+    if (Math.hypot(input.moveX, input.moveZ) > 0.1) {
+      this.setState('grounded');
+      return false;
+    }
+    const target = yawOf(this.ledge.normal.x, this.ledge.normal.z);
+    this.yaw += wrapAngle(target - this.yaw) * (1 - Math.exp(-10 * dt));
+    return true;
+  }
+
+  private startCharge(): void {
+    this.jumpBufferTimer = 0;
+    this.charge = 0;
+    this.events.push({ type: 'chargeStart' });
+    this.setState('charge');
+  }
+
+  /** Titan: crouched and slow while Space is held; letting go launches the super jump. */
+  private updateCharge(dt: number, input: SimInput): boolean {
+    const ti = this.tuning.titan;
+    this.charge = Math.min(1, this.charge + dt / Math.max(ti.chargeTime, 0.05));
+    const wishLength = Math.min(Math.hypot(input.moveX, input.moveZ), 1);
+    this.groundAccelerate(dt, input, wishLength, ti.chargeWalkSpeed * KMH * wishLength, this.mv.turnGrip);
+    this.velocity.y = 0;
+    this.moveBody(dt, this.mv.stepHeight);
+    if (!this.onGround && !this.snapDown(this.mv.stepHeight + 0.1)) {
+      this.coyoteTimer = this.mv.coyoteTime;
+      this.setState('airborne');
+      return true;
+    }
+    // Face where the camera looks: that is where the jump goes.
+    const target = yawOf(input.camForwardX, input.camForwardZ);
+    this.yaw += wrapAngle(target - this.yaw) * (1 - Math.exp(-12 * dt));
+    if (!input.jumpHeld) this.superJump(input);
+    return true;
+  }
+
+  private superJump(input: SimInput): void {
+    const ti = this.tuning.titan;
+    const c = this.charge;
+    const height = MathUtils.lerp(ti.superJumpMin, ti.superJumpMax, c ** 1.3);
+    this.velocity.y = Math.sqrt(2 * this.mv.gravity * height);
+    this.velocity.x += input.camForwardX * ti.superJumpForward * c;
+    this.velocity.z += input.camForwardZ * ti.superJumpForward * c;
+    this.jumpCutArmed = false;
+    this.airTime = 0;
+    this.events.push({ type: 'superJump', charge: c });
+    this.setState('airborne');
+  }
+
+  /** Titan ground pound. `slamNow` skips the hang (a dive turned into a pound by a mode switch). */
+  private startPound(slamNow: boolean): void {
+    this.diveBufferTimer = 0;
+    this.chainPending = false;
+    this.poundSlam = slamNow;
+    this.events.push({ type: 'poundStart' });
+    this.setState('pound');
+  }
+
+  private updatePound(dt: number): boolean {
+    const ti = this.tuning.titan;
+    const v = this.velocity;
+    if (!this.poundSlam && this.stateTime < ti.poundHang) {
+      // Hang: the air goes still for a beat (anticipation), a little lift.
+      const keep = Math.exp(-12 * dt);
+      v.x *= keep;
+      v.z *= keep;
+      v.y = MathUtils.lerp(v.y, 2, 1 - Math.exp(-14 * dt));
+    } else {
+      this.poundSlam = true;
+      const keep = Math.exp(-1.5 * dt);
+      v.x *= keep;
+      v.z *= keep;
+      v.y = -ti.poundSpeed;
+    }
+    this.moveBody(dt, 0);
+    if (this.onGround && this.preMoveVelocity.y <= 0) {
+      this.land(-this.preMoveVelocity.y, true);
+      return true;
+    }
+    return true;
+  }
+
+  /** A fight move: the lunge fades out; gravity still pulls in the air. */
+  private updateAction(dt: number): boolean {
+    const a = this.action;
+    const p = Math.min(this.stateTime / Math.max(a.duration, 1e-3), 1);
+    const fade = (1 - p) * (1 - p);
+    const v = this.velocity;
+    v.x = a.vx * fade;
+    v.z = a.vz * fade;
+    const grounded = this.onGround;
+    if (grounded) v.y = 0;
+    else this.applyGravity(dt, this.mv.gravity, this.mv.maxFallSpeed * KMH);
+    this.moveBody(dt, grounded ? this.mv.stepHeight : 0);
+    if (grounded && !this.onGround) this.snapDown(this.mv.stepHeight + 0.1);
+    this.yaw += wrapAngle(a.yaw - this.yaw) * (1 - Math.exp(-25 * dt));
+    if (this.stateTime + dt >= a.duration) {
+      this.setState(this.onGround ? 'grounded' : 'airborne');
+    }
+    return true;
+  }
+
+  private updateDown(dt: number): boolean {
+    const v = this.velocity;
+    const keep = Math.exp(-6 * dt);
+    v.x *= keep;
+    v.z *= keep;
+    if (this.onGround) v.y = 0;
+    else this.applyGravity(dt, this.mv.gravity, this.mv.maxFallSpeed * KMH);
+    this.moveBody(dt, 0);
     return true;
   }
 
@@ -607,7 +913,7 @@ export class PlayerSim {
   // Transitions
 
   private jump(): void {
-    const m = this.tuning.movement;
+    const m = this.mv;
     this.jumpBufferTimer = 0;
     this.coyoteTimer = 0;
     this.velocity.y = Math.sqrt(2 * m.gravity * m.jumpHeight);
@@ -700,7 +1006,7 @@ export class PlayerSim {
       const speed = v.length();
       const rising = speed > 1 ? MathUtils.clamp(v.y / speed, 0, 1) : 0;
       v.y += r.releaseUpBoost * (0.4 + 0.6 * rising);
-      this.capSpeed(this.tuning.movement.topSpeed * KMH);
+      this.capSpeed(this.mv.topSpeed * KMH);
     }
     this.detachRope(boost);
     this.timeSinceRelease = 0;
@@ -737,7 +1043,44 @@ export class PlayerSim {
     this.jumpBufferTimer = 0;
     this.chainPending = false;
     this.detachRope(false);
+    this.zipKind = 'zip';
     this.events.push({ type: 'zipStart' });
+    this.setState('zip');
+    return true;
+  }
+
+  /** E: rope onto the ledge under the crosshair. Pulls to just outside the edge, then hops on. */
+  private tryLedgeLaunch(input: SimInput): boolean {
+    const r = this.tuning.rope;
+    const found = this.ledgeFound;
+    if (!findLedge(this.world, input.aimOrigin, input.aimDir, this.position, r, this.shape.halfWidth, this.shape.halfHeight, found)) {
+      this.events.push({ type: 'noLedge' });
+      return false;
+    }
+    const l = this.ledge;
+    l.point.copy(found.point);
+    l.perch.copy(found.perch);
+    l.approach.copy(found.approach);
+    l.normal.copy(found.normal);
+    l.edgeA.copy(found.edgeA);
+    l.edgeB.copy(found.edgeB);
+    l.box = found.box;
+    const z = this.zip;
+    z.destination.copy(l.approach);
+    z.attach.copy(l.point);
+    z.normal.copy(l.normal);
+    z.perch = true;
+    z.box = l.box;
+    const dir = this.tmp.subVectors(z.destination, this.position);
+    const distance = dir.length();
+    dir.divideScalar(Math.max(distance, 1e-6));
+    this.zipSpeedNow = Math.max(r.launchSpeed * KMH, this.velocity.dot(dir));
+    this.zipDuration = distance / this.zipSpeedNow + 0.5;
+    this.jumpBufferTimer = 0;
+    this.chainPending = false;
+    this.detachRope(false);
+    this.zipKind = 'ledge';
+    this.events.push({ type: 'zipStart' }, { type: 'ledgeLaunch' });
     this.setState('zip');
     return true;
   }
@@ -745,8 +1088,14 @@ export class PlayerSim {
   private arriveZip(): void {
     const r = this.tuning.rope;
     const z = this.zip;
-    this.zipCooldown = r.zipCooldown;
     this.events.push({ type: 'zipArrive' });
+    if (this.zipKind === 'ledge') {
+      // A short hop from the end of the pull onto the ledge, then crouch there.
+      this.launchCooldown = r.launchCooldown;
+      this.startHop(this.ledge.perch, r.perchHopTime, true);
+      return;
+    }
+    this.zipCooldown = r.zipCooldown;
     if (z.perch) {
       // Pop over the edge onto the roof, carrying some of the zip's speed.
       let hx = this.velocity.x;
@@ -802,7 +1151,7 @@ export class PlayerSim {
 
   /** Decides what touching a wall in the air means: mantle, wall run, climb or nothing. */
   private tryWallContact(input: SimInput, nx: number, nz: number, box: Box): boolean {
-    const m = this.tuning.movement;
+    const m = this.mv;
     if ((box.flags & CLIMBABLE) === 0) return false;
     const v = this.preMoveVelocity;
     const speed = Math.hypot(v.x, v.z);
@@ -836,7 +1185,7 @@ export class PlayerSim {
   }
 
   private startWallRun(nx: number, nz: number, box: Box): void {
-    const m = this.tuning.movement;
+    const m = this.mv;
     const v = this.preMoveVelocity;
     const dn = v.x * nx + v.z * nz;
     const alongX = v.x - nx * dn;
@@ -853,7 +1202,7 @@ export class PlayerSim {
   }
 
   private startClimb(nx: number, nz: number, box: Box): boolean {
-    const m = this.tuning.movement;
+    const m = this.mv;
     if ((box.flags & CLIMBABLE) === 0) return false;
     if (box.maxY - this.position.y <= m.mantleReach) return this.startMantle(nx, nz, box);
     this.wallNormal.set(nx, 0, nz);
@@ -867,21 +1216,30 @@ export class PlayerSim {
   }
 
   private startMantle(nx: number, nz: number, box: Box): boolean {
-    const m = this.tuning.movement;
+    const m = this.mv;
     const r = this.shape.halfWidth;
     const toX = this.position.x - nx * (r + 0.45);
     const toZ = this.position.z - nz * (r + 0.45);
     const toY = box.maxY + SKIN * 2;
     if (this.world.overlaps(toX, toY + this.shape.halfHeight + 0.01, toZ, r, this.shape.halfHeight, r)) return false;
-    this.mantleFrom.copy(this.position);
-    this.mantleTo.set(toX, toY, toZ);
     const keep = Math.max(m.mantleExitSpeed * KMH, Math.hypot(this.velocity.x, this.velocity.z) * 0.5);
+    this.tmp.set(toX, toY, toZ);
+    this.startHop(this.tmp, m.mantleTime, false);
     this.mantleExit.set(-nx * keep, 0, -nz * keep);
-    this.velocity.set(0, 0, 0);
     this.yaw = Math.atan2(nx, nz);
     this.events.push({ type: 'mantle' });
-    this.setState('mantle');
     return true;
+  }
+
+  /** Up and over onto `to` in `duration` (mantles, and the hop onto a perch). */
+  private startHop(to: Vector3, duration: number, toPerch: boolean): void {
+    this.mantleFrom.copy(this.position);
+    this.mantleTo.copy(to);
+    this.mantleExit.set(0, 0, 0);
+    this.mantleDuration = duration;
+    this.mantleToPerch = toPerch;
+    this.velocity.set(0, 0, 0);
+    this.setState('mantle');
   }
 
   private wallJump(keepX: number, keepZ: number, out: number, up: number): void {
@@ -912,7 +1270,7 @@ export class PlayerSim {
   }
 
   private land(impact: number, fromDive: boolean): void {
-    const m = this.tuning.movement;
+    const m = this.mv;
     const v = this.velocity;
     v.y = 0;
     const speed = Math.hypot(v.x, v.z);
@@ -937,6 +1295,23 @@ export class PlayerSim {
     this.chainPending = false;
     this.onGround = true;
     this.events.push({ type: 'land', kind, impact });
+    const ti = this.tuning.titan;
+    if (this.state === 'pound') {
+      this.events.push({ type: 'shockwave', x: this.position.x, y: this.position.y, z: this.position.z, radius: ti.shockRadius, force: ti.shockForce, damage: ti.shockDamage, pound: true });
+    } else if (this.abilities.groundPound && impact >= ti.landShockImpact) {
+      // A heavy body landing hard: a smaller shockwave of its own.
+      const share = Math.min(impact / (ti.landShockImpact * 2.5), 1) * 0.6;
+      this.events.push({
+        type: 'shockwave',
+        x: this.position.x,
+        y: this.position.y,
+        z: this.position.z,
+        radius: ti.shockRadius * share,
+        force: ti.shockForce * share,
+        damage: ti.shockDamage * share * 0.5,
+        pound: false,
+      });
+    }
     this.setState(kind === 'soft' ? 'grounded' : 'landing');
   }
 
@@ -951,7 +1326,7 @@ export class PlayerSim {
   // Physics helpers
 
   private groundAccelerate(dt: number, input: SimInput, wishLength: number, target: number, grip: number): void {
-    const m = this.tuning.movement;
+    const m = this.mv;
     const v = this.velocity;
     const speed = Math.hypot(v.x, v.z);
     const runSpeed = m.runSpeed * KMH;
@@ -989,7 +1364,7 @@ export class PlayerSim {
 
   /** Air steering: redirects momentum but never adds speed beyond max(current, run speed). */
   private airAccelerate(dt: number, input: SimInput): void {
-    const m = this.tuning.movement;
+    const m = this.mv;
     if (Math.hypot(input.moveX, input.moveZ) < 0.05) return;
     const v = this.velocity;
     const before = Math.hypot(v.x, v.z);
@@ -1047,7 +1422,7 @@ export class PlayerSim {
 
   /** Passing close to a wall at speed: a small boost (creative addition, tunable). */
   private checkNearMiss(): void {
-    const m = this.tuning.movement;
+    const m = this.mv;
     if (m.nearMissBoost <= 0 || this.nearMissTimer > 0) return;
     const v = this.velocity;
     const speed = Math.hypot(v.x, v.z);
@@ -1075,12 +1450,15 @@ export class PlayerSim {
   }
 
   private tickTimers(dt: number, input: SimInput): void {
-    const m = this.tuning.movement;
+    const m = this.mv;
     this.coyoteTimer = Math.max(0, this.coyoteTimer - dt);
     this.jumpBufferTimer = Math.max(0, this.jumpBufferTimer - dt);
     this.diveBufferTimer = Math.max(0, this.diveBufferTimer - dt);
     if (input.jumpPressed) this.jumpBufferTimer = m.jumpBuffer;
     if (input.divePressed) this.diveBufferTimer = DIVE_BUFFER;
+    this.launchBufferTimer = Math.max(0, this.launchBufferTimer - dt);
+    if (input.launchPressed) this.launchBufferTimer = LAUNCH_BUFFER;
+    this.launchCooldown = Math.max(0, this.launchCooldown - dt);
     this.zipCooldown = Math.max(0, this.zipCooldown - dt);
     this.wallRunCooldown = Math.max(0, this.wallRunCooldown - dt);
     this.sameWallTimer = Math.max(0, this.sameWallTimer - dt);
@@ -1119,8 +1497,36 @@ export class PlayerSim {
     this.onGround = true;
     this.jumpBufferTimer = 0;
     this.diveBufferTimer = 0;
+    this.launchBufferTimer = 0;
+    this.charge = 0;
     this.setState('grounded');
   }
+
+  /** tuning.movement plus the active mode's replacements, into `mv` (no allocation). */
+  private refreshMovement(): void {
+    Object.assign(this.mv, this.tuning.movement);
+    const replace = this.modeDef.movement?.(this.tuning);
+    if (replace) Object.assign(this.mv, replace);
+  }
+}
+
+/** States a fight move may start from. */
+function canAct(state: MoveState): boolean {
+  return state === 'grounded' || state === 'landing' || state === 'airborne' || state === 'action' || state === 'perch' || state === 'swinging' || state === 'dive';
+}
+
+/** States E (look and launch) works from. */
+function canLaunch(state: MoveState): boolean {
+  return (
+    state === 'grounded' ||
+    state === 'landing' ||
+    state === 'airborne' ||
+    state === 'swinging' ||
+    state === 'dive' ||
+    state === 'wallRun' ||
+    state === 'wallClimb' ||
+    state === 'perch'
+  );
 }
 
 /** Position of a box face along its normal axis (adjacent buildings share a facade plane). */
