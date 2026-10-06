@@ -159,6 +159,12 @@ export class Sound {
     this.sweep(400, 2400, 0.4, 0.25 + charge * 0.2);
   }
 
+  /** Tutorial step done. */
+  ding(): void {
+    this.tone(880, 880, 0.12, 'triangle', 0.18);
+    window.setTimeout(() => this.tone(1320, 1320, 0.18, 'triangle', 0.16), 90);
+  }
+
   ko(): void {
     this.tone(330, 110, 0.5, 'triangle', 0.3);
   }

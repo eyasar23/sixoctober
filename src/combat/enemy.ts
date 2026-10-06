@@ -75,6 +75,8 @@ export class Enemy {
   readonly maxHealth: number;
   /** Wakes up when the hero comes close or anyone gets hit. */
   alerted = false;
+  /** Sparring dummy (tutorial): circles the hero but never attacks. */
+  passive = false;
   hasToken = false;
   attackCooldown: number;
   /** Strafing direction around the hero (±1). */
@@ -159,7 +161,7 @@ export class Enemy {
         v.z = toZ * radial + toX * strafe;
         if (ctx.random() < dt * 0.25) this.circleSide = -this.circleSide;
         if (distance > t.engageRange + 3) this.setState('approach');
-        else if (ctx.playerActive && this.attackCooldown <= 0 && ctx.requestAttack(this)) {
+        else if (!this.passive && ctx.playerActive && this.attackCooldown <= 0 && ctx.requestAttack(this)) {
           this.hasToken = true;
           events.push({ type: 'warn', enemy: this });
           this.setState('warn');

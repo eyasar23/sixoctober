@@ -116,6 +116,8 @@ export interface CityData {
   billboards: Billboard[];
   lanes: Lane[];
   spawn: { x: number; y: number; z: number; yaw: number };
+  /** On the spawn tower's parapet, facing down the avenue (title screen, tutorial start). */
+  perch: { x: number; y: number; z: number; nx: number; nz: number };
 }
 
 /** Number of fictional brands in the i18n file (brand.0 …). */
@@ -146,6 +148,7 @@ export function generateCity(options: CityTuning): CityData {
     lanes: [],
     // Near the north edge, so the first frame looks straight down the main avenue.
     spawn: { x: 0, y: SPAWN_TOWER.height, z: SPAWN_TOWER.minZ + 1.8, yaw: 0 },
+    perch: { x: 0, y: SPAWN_TOWER.height + PARAPET_HEIGHT, z: SPAWN_TOWER.minZ + PARAPET_THICKNESS / 2, nx: 0, nz: -1 },
   };
 
   // Roads -------------------------------------------------------------------------------

@@ -13,7 +13,9 @@ import { BlobShadow, LandingDust } from './fx/heroFx';
 import { LedgeHighlight } from './fx/ledgeHighlight';
 import { PostFx } from './fx/postFx';
 import { Feedback } from './game/feedback';
-import { tKey } from './i18n';
+import { applySettings, frameRateCap, loadSettings, markTutorialDone, saveSettings, tutorialDone } from './game/settings';
+import { Tutorial } from './game/tutorial';
+import { t, tKey } from './i18n';
 import { MODE_LIST } from './modes';
 import { ModeBand } from './modes/modeBand';
 import { FollowCamera } from './player/followCamera';
@@ -24,6 +26,7 @@ import { RopeVisual } from './player/ropeVisual';
 import { ComicFx } from './ui/comicFx';
 import { createDebugPanel, type PanelStats } from './ui/debugPanel';
 import { Hud, type HudCrime } from './ui/hud';
+import { buildControlsCard, Menu } from './ui/menu';
 import { createLights, createSky } from './world/atmosphere';
 import { BRAND_COUNT, buildCollision, generateCity } from './world/cityGen';
 import { CollisionWorld } from './world/collision';
@@ -73,6 +76,15 @@ scene.add(sky, createSkyline(city.seed), ...lights.lights, buildings.mesh, stree
 const modeBand = new ModeBand(MODE_LIST);
 const sim = new PlayerSim(world, tuning, modeBand.mode, city.halfSize);
 sim.spawn(city.spawn.x, city.spawn.y, city.spawn.z, city.spawn.yaw);
+const perchOnTower = (): void => {
+  const p = city.perch;
+  sim.perchAt(p.x, p.y, p.z, p.nx, p.nz);
+};
+perchOnTower();
+/** Tutorial start: the back of the spawn tower's roof, facing the avenue (room to sprint and jump off). */
+const toTutorialStart = (): void => {
+  sim.respawnAt(city.spawn.x, city.spawn.y, city.spawn.z + 32, city.spawn.yaw);
+};
 const hero = new HeroFigure(tuning);
 const rope = new RopeVisual();
 const shadow = new BlobShadow();
@@ -112,22 +124,121 @@ createDebugPanel(tuning, stats, {
 });
 const feedback = new Feedback({ tuning, sim, modeBand, hero, rope, cameraRig, camera, comic, hud, sound, fx: fxPool, dust, traffic, crimeScene, combat, enemyViews });
 
-let playing = false;
-const startPlaying = (): void => {
-  if (playing) return;
-  playing = true;
+// Settings (saved in this browser) ----------------------------------------------------------------
+const baseSensitivity = tuning.camera.mouseSensitivity;
+const settings = loadSettings(tuning);
+const applyAllSettings = (): void => {
+  applySettings(settings, tuning, baseSensitivity);
+  loop.maxFps = frameRateCap(settings.frameRate);
+};
+
+// Game flow: title screen → play (tutorial the first time) → Esc pauses → resume ----------------
+type GameState = 'title' | 'playing' | 'paused';
+let gameState: GameState = 'title';
+const tutorial = new Tutorial(app, sim, {
+  spawnDummy: () => {
+    const fx = -Math.sin(sim.yaw);
+    const fz = -Math.cos(sim.yaw);
+    const x = sim.position.x + fx * 4.5;
+    const z = sim.position.z + fz * 4.5;
+    const dummy = combat.spawn('grunt', x, world.supportHeight(x, z, 0.3, 0.3, sim.position.y + 1), z);
+    dummy.passive = true;
+    dummy.alerted = true;
+    return dummy;
+  },
+  removeDummy: (dummy) => combat.remove(dummy),
+  stepDone: () => sound.ding(),
+  finished: (completed) => {
+    markTutorialDone();
+    menu.setTutorialActive(false);
+    if (completed) comic.showBanner(t('tutorial.doneTitle'), t('tutorial.doneSub'), 3.5, 'win');
+    if (crime.phase === 'none') crime.begin(sim.position);
+  },
+});
+const menu = new Menu(app, settings, {
+  play: () => {
+    requestLock();
+    const first = !tutorialDone();
+    if (first) toTutorialStart();
+    enterPlaying(first);
+  },
+  tutorial: () => {
+    requestLock();
+    toTutorialStart();
+    cameraRig.snapBehind(sim.yaw);
+    enterPlaying(true);
+  },
+  resume: () => {
+    requestLock();
+    enterPlaying(false);
+  },
+  skipTutorial: () => {
+    tutorial.skip();
+    requestLock();
+    enterPlaying(false);
+  },
+  toTitle: () => {
+    gameState = 'title';
+    menu.open('title');
+    cameraRig.playShot(titleShot);
+  },
+  settingsChanged: () => {
+    applyAllSettings();
+    saveSettings(settings);
+  },
+});
+const controlCard = document.createElement('div');
+controlCard.className = 'control-card-overlay';
+controlCard.append(buildControlsCard());
+controlCard.hidden = true;
+app.append(controlCard);
+
+const requestLock = (): void => {
   sound.start();
-  cameraRig.skipIntro();
-  if (crime.phase === 'none') crime.begin(sim.position);
+  if (testMode) return;
+  renderer.domElement.requestPointerLock().catch(() => {
+    // Refused (e.g. right after Esc): clicking the game tries again.
+  });
+};
+/** Into the game; `withTutorial` starts the tutorial (first visit or from the menu). */
+const enterPlaying = (withTutorial: boolean): void => {
+  const fromTitle = gameState === 'title';
+  gameState = 'playing';
+  menu.close();
+  input.clearPresses();
+  if (fromTitle) {
+    cameraRig.skipIntro();
+    cameraRig.yaw = sim.yaw;
+    cameraRig.pitch = 0.3;
+    cameraRig.zoomLevel = 1;
+    cameraRig.endShot();
+  }
+  if (withTutorial && !tutorial.active) {
+    menu.setTutorialActive(true);
+    tutorial.start();
+  } else if (!tutorial.active && crime.phase === 'none') {
+    crime.begin(sim.position);
+  }
 };
 input.onPointerLockChange((locked) => {
-  if (locked) startPlaying();
+  if (locked && gameState === 'paused') enterPlaying(false);
+  if (!locked && gameState === 'playing' && !testMode) {
+    gameState = 'paused';
+    controlCard.hidden = true;
+    menu.open('pause');
+  }
+});
+// A click on the game while paused (outside the menu) resumes.
+renderer.domElement.addEventListener('click', () => {
+  if (gameState === 'playing' && !testMode && !document.pointerLockElement) requestLock();
 });
 window.addEventListener('keydown', () => sound.start(), { once: true });
 
 // Mode switch: costume, burst, comic panel and a beat of slow motion (signature moment).
 let transformTime = -1;
 const heroChest = new Vector3();
+/** Title screen framing: the perched hero on the right third, the avenue beyond, slowly turning. */
+const titleShot = { duration: 1e9, yaw: 0.35, pitch: 0.16, distance: 8.5, height: 1.4, side: -2.6, fov: 56, roll: -0.04, blendIn: 0.01, blendOut: 1.2 };
 modeBand.onChange((mode) => {
   hero.setCostume(mode, true);
   hero.pulse(mode.glow);
@@ -144,6 +255,7 @@ modeBand.onChange((mode) => {
     comic.transform(tKey(mode.nameKey), mode.glow);
     transformTime = 0;
   }
+  tutorial.onModeChange();
 });
 
 // Quality -------------------------------------------------------------------------------------
@@ -215,6 +327,23 @@ const buildInput = (): void => {
   combatInput.camForwardZ = fz;
 };
 
+/** No player input (title screen, pause): the hero stands or stays perched. */
+const idleInput = (): void => {
+  simInput.moveX = 0;
+  simInput.moveZ = 0;
+  simInput.forward = 0;
+  simInput.right = 0;
+  simInput.jumpPressed = false;
+  simInput.jumpHeld = false;
+  simInput.shiftHeld = false;
+  simInput.divePressed = false;
+  simInput.respawnPressed = false;
+  combatInput.punch = false;
+  combatInput.kick = false;
+  combatInput.counter = false;
+  combatInput.rope = false;
+};
+
 // Test telemetry (only with ?test) ---------------------------------------------------------------
 const telemetry = {
   steps: 0,
@@ -273,7 +402,8 @@ const loop = new GameLoop(
   {
     step(dt) {
       const started = testMode ? performance.now() : 0;
-      buildInput();
+      if (gameState === 'playing') buildInput();
+      else idleInput();
       combat.step(dt, combatInput);
       simInput.launchPressed = combatInput.rope;
       sim.step(dt, simInput);
@@ -290,21 +420,31 @@ const loop = new GameLoop(
     },
     render(alpha, frameDt) {
       const frameStarted = testMode ? performance.now() : 0;
-      if (input.consumePress('KeyT')) slowMo = !slowMo;
-      if (input.consumePress('Tab')) modeBand.next();
-      for (let slot = 0; slot < 4; slot++) if (input.consumePress(`Digit${slot + 1}`)) modeBand.select(slot);
-      const wheel = input.takeWheelStep();
-      if (wheel !== 0) cameraRig.zoomStep(wheel);
+      if (gameState === 'playing') {
+        if (input.consumePress('KeyT')) slowMo = !slowMo;
+        if (input.consumePress('Tab')) modeBand.next();
+        for (let slot = 0; slot < 4; slot++) if (input.consumePress(`Digit${slot + 1}`)) modeBand.select(slot);
+        const wheel = input.takeWheelStep();
+        if (wheel !== 0) cameraRig.zoomStep(wheel);
+        if (input.consumePress('KeyH')) controlCard.hidden = !controlCard.hidden;
+        if (input.consumePress('Enter')) tutorial.skipStep();
+        if (input.consumePress('Backspace') && tutorial.active) tutorial.skip();
+      } else {
+        // Title: the camera drifts slowly around the hero perched over the avenue.
+        if (gameState === 'title') titleShot.yaw += frameDt * 0.05;
+      }
 
       // Events → feedback.
       for (const event of sim.events) {
         count(event.type);
         feedback.sim(event);
+        tutorial.onSim(event);
       }
       sim.events.length = 0;
       for (const event of combat.events) {
         count(event.type);
         feedback.combat(event);
+        tutorial.onCombat(event);
       }
       combat.events.length = 0;
       for (const event of crime.events) {
@@ -321,11 +461,12 @@ const loop = new GameLoop(
         else transformTime = -1;
       }
       feedback.update(frameDt);
-      loop.timeScale = feedback.timeScale(base);
+      tutorial.update(gameState === 'playing' ? frameDt : 0);
+      loop.timeScale = gameState === 'paused' ? 0 : feedback.timeScale(base);
       const worldDt = frameDt * loop.timeScale;
 
       input.takeMouseDelta(mouse);
-      cameraRig.look(mouse.x, mouse.y);
+      if (gameState === 'playing') cameraRig.look(mouse.x, mouse.y);
       renderPosition.lerpVectors(sim.previousPosition, sim.position, alpha);
       const swinging = sim.state === 'swinging';
       cameraRig.update(
@@ -402,7 +543,7 @@ const loop = new GameLoop(
       }
       let crosshair: 'none' | 'ledge' | 'enemy' = 'none';
       let ledgeShown = false;
-      if (sim.abilities.ledgeLaunch && playing) {
+      if (sim.abilities.ledgeLaunch && gameState === 'playing') {
         if (combat.enemyUnderAim(camera.position, lookDir)) crosshair = 'enemy';
         else if (findLedge(world, camera.position, lookDir, sim.position, tuning.rope, sim.shape.halfWidth, sim.shape.halfHeight, ledgePreview)) {
           crosshair = 'ledge';
@@ -447,7 +588,7 @@ const loop = new GameLoop(
       }
       mapEnemies.length = 0;
       for (const e of combat.enemies) if (e.health > 0) mapEnemies.push({ x: e.position.x, z: e.position.z });
-      hud.setVisible(tuning.ui.hud && !feedback.cinematic);
+      hud.setVisible(tuning.ui.hud && gameState !== 'title' && !feedback.cinematic);
       hud.update(
         frameDt,
         {
@@ -490,6 +631,10 @@ const loop = new GameLoop(
     },
   },
 );
+applyAllSettings();
+menu.open('title');
+cameraRig.skipIntro();
+cameraRig.playShot(titleShot);
 loop.start();
 
 if (testMode) {
@@ -511,7 +656,10 @@ if (testMode) {
       setLockstep: (steps: number) => {
         loop.lockstepSteps = steps;
       },
-      play: () => startPlaying(),
+      play: () => enterPlaying(false),
+      tutorial,
+      menu,
+      gameState: () => gameState,
     },
   });
 }

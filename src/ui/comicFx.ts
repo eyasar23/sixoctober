@@ -102,7 +102,7 @@ export class ComicFx {
     word.replaceChildren();
     for (const letter of text) {
       const span = document.createElement('span');
-      span.textContent = letter;
+      span.textContent = letter === ' ' ? '\u00a0' : letter;
       span.style.setProperty('--ly', `${((r() * 2 - 1) * (2 + 6 * s)).toFixed(1)}px`);
       span.style.setProperty('--lr', `${((r() * 2 - 1) * (4 + 8 * s)).toFixed(1)}deg`);
       word.append(span);
@@ -184,6 +184,12 @@ export class ComicFx {
   setLetterbox(on: boolean, caption = ''): void {
     this.letterbox.classList.toggle('on', on);
     this.letterboxCaption.textContent = caption;
+    if (on) this.hideBanner();
+  }
+
+  hideBanner(): void {
+    this.banner.hidden = true;
+    this.bannerTime = -1;
   }
 
   /** `dt`: real seconds. */

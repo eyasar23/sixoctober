@@ -228,7 +228,8 @@ export class Feedback {
         }
         if (tuning.fx.comicImpact) {
           const list = event.kind === 'counter' ? this.words.counter : event.heavy ? this.words.heavy : event.step === 3 ? this.words.finisher : event.kind === 'kick' ? this.words.kick : this.words.punch;
-          comic.wordAt(pick(event.ko ? this.words.ko : list), event.at, camera, { strength: event.ko ? 0.95 : s });
+          const color = event.kind === 'counter' ? '#5FE3FF' : undefined;
+          comic.wordAt(pick(event.ko ? this.words.ko : list), event.at, camera, color ? { strength: event.ko ? 0.95 : s, color } : { strength: event.ko ? 0.95 : s });
         }
         if (event.ko) sound.ko();
         break;
@@ -242,7 +243,6 @@ export class Feedback {
         fx.spawn('flare', this.chest, '#FFFFFF', 2.2, 0.3, 2);
         sound.counter();
         cameraRig.punchFov(-6);
-        if (tuning.fx.comicImpact) comic.wordAt(pick(this.words.counter), this.chest, camera, { strength: 0.9, color: '#5FE3FF' });
         break;
       case 'counterMiss':
         break;
@@ -322,7 +322,7 @@ export class Feedback {
     const d = Math.max(Math.hypot(dx, dz), 1e-3);
     const sideX = dz / d;
     const sideZ = -dx / d;
-    cameraRig.playShot({ duration: time * 0.85, yaw: Math.atan2(sideX, sideZ), pitch: 0.06, distance: 4.8, height: 1.05, side: -Math.min(d, 3) * 0.45, fov: 52, roll: 0.12, blendIn: 0.18, blendOut: 0.5 });
+    cameraRig.playShot({ duration: time * 0.85, yaw: Math.atan2(sideX, sideZ), pitch: 0.07, distance: 5.8, height: 1.1, side: -Math.min(d, 3) * 0.45, fov: 52, roll: 0.12, blendIn: 0.18, blendOut: 0.5 });
   }
 
   private perchShot(): void {

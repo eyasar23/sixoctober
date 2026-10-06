@@ -292,6 +292,16 @@ export class PlayerSim {
     return true;
   }
 
+  /** Puts the hero crouched on a ledge facing out along (nx, nz) (title screen, tutorial start). */
+  perchAt(x: number, y: number, z: number, nx: number, nz: number): void {
+    this.tmp.set(x, y, z);
+    this.resetAt(this.tmp, yawOf(nx, nz));
+    this.ledge.perch.set(x, y, z);
+    this.ledge.point.set(x, y, z);
+    this.ledge.normal.set(nx, 0, nz);
+    this.setState('perch');
+  }
+
   /** Knocked out: the hero drops and lies still until respawnAt(). */
   knockOut(): void {
     this.detachRope(false);
