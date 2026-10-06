@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+.vercel/
+*.local
+*.log
+.DS_Store
+*.blend1
+__pycache__/
