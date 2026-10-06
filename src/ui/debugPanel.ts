@@ -79,6 +79,7 @@ export function createDebugPanel(tuning: Tuning, stats: PanelStats, actions: Pan
     ['swingAssist', [0, 25, 0.5]],
     ['releaseForwardBoost', [0, 50, 1]],
     ['releaseUpBoost', [0, 15, 0.5]],
+    ['ropeJumpUp', [0, 20, 0.5]],
     ['autoChain'],
     ['autoReleaseAngle', [20, 90, 1]],
     ['reattachDelay', [0, 0.5, 0.01]],
@@ -94,6 +95,7 @@ export function createDebugPanel(tuning: Tuning, stats: PanelStats, actions: Pan
     ['minHeightAbove', [0, 15, 0.5]],
     ['forwardMinDot', [-0.5, 0.9, 0.05]],
     ['aimWeight', [0, 1, 0.05]],
+    ['sideAlternation', [0, 1, 0.05]],
   ]);
   group(rope, 'panel.rope.zip', r, [
     ['zipSpeed', [60, 250, 1]],
