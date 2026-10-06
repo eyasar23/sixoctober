@@ -1,3 +1,4 @@
+import { palette } from '../config/palette';
 import type { ModeDefinition } from './modeBand';
 
 /** Kanca (Grapple): fast; rope swings, zips, ledge launches, dives, wall runs. Electric cyan. */
@@ -17,6 +18,6 @@ export const grappleMode: ModeDefinition = {
   },
   glow: '#3FD6FF',
   accent: '#2A0D44',
-  costume: { armor: false, weight: 0 },
+  costume: { armor: false, weight: 0, hoodie: palette.hoodie, jeans: palette.jeans },
   strikes: 'light',
 };

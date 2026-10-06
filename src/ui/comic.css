@@ -1,0 +1,317 @@
+/* Comic layer: sound-effect words, transformation panel, banners, slow-motion frame. */
+
+.comic {
+  --ink: #140a1c;
+  --paper: #f4e2b8;
+  --comic-font: italic 900 1em/1 Impact, Haettenschweiler, 'Arial Black', 'Franklin Gothic Heavy', 'DejaVu Sans', sans-serif;
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  z-index: 2;
+}
+
+.comic [hidden] {
+  display: none !important;
+}
+
+/* Sound-effect words ------------------------------------------------------------------- */
+
+.comic-word {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font: var(--comic-font);
+  font-size: var(--size);
+  color: var(--color);
+  -webkit-text-stroke: calc(var(--size) * 0.075) var(--ink);
+  paint-order: stroke fill;
+  text-shadow:
+    calc(var(--size) * 0.07) calc(var(--size) * 0.07) 0 var(--shadow),
+    calc(var(--size) * 0.12) calc(var(--size) * 0.12) 0 var(--ink);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  transform: translate(var(--x), var(--y)) translate(-50%, -50%) rotate(var(--tilt)) skewX(var(--skew));
+}
+
+.comic-word span {
+  display: inline-block;
+  transform: translateY(var(--ly)) rotate(var(--lr));
+}
+
+.comic-word.play {
+  animation: word-pop var(--life) cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+@keyframes word-pop {
+  0% {
+    opacity: 1;
+    transform: translate(var(--x), var(--y)) translate(-50%, -50%) rotate(var(--tilt)) skewX(var(--skew)) scale(0.2);
+  }
+  16% {
+    transform: translate(calc(var(--x) + var(--shake)), var(--y)) translate(-50%, -50%) rotate(var(--tilt)) skewX(var(--skew)) scale(1.22);
+  }
+  28% {
+    transform: translate(calc(var(--x) - var(--shake)), var(--y)) translate(-50%, -50%) rotate(var(--tilt)) skewX(var(--skew)) scale(1);
+  }
+  40% {
+    transform: translate(var(--x), var(--y)) translate(-50%, -50%) rotate(var(--tilt)) skewX(var(--skew)) scale(1);
+  }
+  72% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--x), calc(var(--y) - 34px)) translate(-50%, -50%) rotate(var(--tilt)) skewX(var(--skew)) scale(0.9);
+  }
+}
+
+/* Flash -------------------------------------------------------------------------------- */
+
+.comic-flash {
+  position: absolute;
+  inset: 0;
+  background: var(--flash, #fff);
+  opacity: 0;
+  mix-blend-mode: screen;
+}
+
+.comic-flash.play {
+  animation: comic-flash 0.32s ease-out both;
+}
+
+@keyframes comic-flash {
+  from {
+    opacity: var(--strength, 0.4);
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Transformation panel ----------------------------------------------------------------- */
+
+/* The band sits in the upper third so the hero stays visible below while the armour snaps on. */
+.comic-transform {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.comic-transform::before,
+.comic-transform-dots {
+  content: '';
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  top: 8%;
+  height: 30%;
+  clip-path: polygon(0 22%, 100% 0, 100% 78%, 0 100%);
+}
+
+.comic-transform::before {
+  background: var(--mode);
+  box-shadow: inset 0 0 0 9px var(--ink);
+}
+
+.comic-transform-dots {
+  background-image: radial-gradient(circle, rgb(20 10 28 / 50%) 30%, transparent 33%);
+  background-size: 11px 11px;
+}
+
+.comic-transform-name {
+  position: relative;
+  font: var(--comic-font);
+  font-size: min(15vw, 150px);
+  margin-top: calc(23vh - 0.5em);
+  color: #fff;
+  -webkit-text-stroke: 7px var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 11px 11px 0 var(--ink);
+  letter-spacing: 0.04em;
+  transform: skewX(-12deg) rotate(-4deg);
+}
+
+.comic-transform.play {
+  animation: transform-slash 0.6s cubic-bezier(0.15, 0.85, 0.3, 1) both;
+}
+
+@keyframes transform-slash {
+  0% {
+    opacity: 1;
+    transform: translateX(-70%) skewX(-24deg);
+  }
+  22% {
+    transform: translateX(0) skewX(-4deg);
+  }
+  68% {
+    opacity: 1;
+    transform: translateX(2%) skewX(-4deg) scale(1.03);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(70%) skewX(-24deg);
+  }
+}
+
+/* Banner ------------------------------------------------------------------------------- */
+
+.comic-banner {
+  position: absolute;
+  left: 50%;
+  top: 9%;
+  min-width: 280px;
+  padding: 14px 34px 12px;
+  text-align: center;
+  background: var(--paper);
+  border: 4px solid var(--ink);
+  box-shadow: 9px 9px 0 var(--ink);
+  transform: translateX(-50%) skewX(-8deg);
+}
+
+.comic-banner::after {
+  content: '';
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 42%;
+  height: 70%;
+  background-image: radial-gradient(circle, rgb(255 74 46 / 45%) 30%, transparent 33%);
+  background-size: 8px 8px;
+  mask-image: linear-gradient(135deg, transparent 30%, #000 100%);
+}
+
+.comic-banner-title {
+  position: relative;
+  z-index: 1;
+  font: var(--comic-font);
+  font-size: 56px;
+  color: #ff4a2e;
+  -webkit-text-stroke: 3px var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 5px 5px 0 var(--ink);
+  letter-spacing: 0.05em;
+}
+
+.comic-banner-sub {
+  position: relative;
+  z-index: 1;
+  margin-top: 6px;
+  font: italic 800 17px/1.2 system-ui, sans-serif;
+  letter-spacing: 0.12em;
+  color: var(--ink);
+}
+
+.comic-banner[data-tone='alert'] {
+  background: var(--ink);
+  border-color: #ff4a2e;
+  box-shadow: 9px 9px 0 #ff4a2e;
+}
+
+.comic-banner[data-tone='alert'] .comic-banner-title {
+  font-size: 38px;
+  color: var(--paper);
+}
+
+.comic-banner[data-tone='alert'] .comic-banner-sub {
+  color: #ff8a2a;
+}
+
+.comic-banner.play {
+  animation: banner-in 0.5s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+
+.comic-banner.out {
+  animation: banner-out 0.35s ease-in both;
+}
+
+@keyframes banner-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -140%) skewX(-8deg) rotate(-6deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) skewX(-8deg);
+  }
+}
+
+@keyframes banner-out {
+  to {
+    opacity: 0;
+    transform: translate(-50%, -60%) skewX(-8deg) scale(0.9);
+  }
+}
+
+/* Slow-motion frame --------------------------------------------------------------------- */
+
+.comic-letterbox {
+  position: absolute;
+  inset: 0;
+  transition: box-shadow 0.18s ease-out;
+}
+
+.comic-letterbox::before,
+.comic-letterbox::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  background: #0b0510;
+  transition: height 0.2s ease-out;
+}
+
+.comic-letterbox::before {
+  top: 0;
+}
+
+.comic-letterbox::after {
+  bottom: 0;
+}
+
+.comic-letterbox.on {
+  box-shadow: inset 0 0 0 9px var(--ink);
+}
+
+.comic-letterbox.on::before,
+.comic-letterbox.on::after {
+  height: 11vh;
+}
+
+.comic-letterbox-dots {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.2s;
+  background-image: radial-gradient(circle, rgb(20 10 28 / 55%) 30%, transparent 33%);
+  background-size: 9px 9px;
+  mask-image: radial-gradient(ellipse at center, transparent 52%, #000 88%);
+}
+
+.comic-letterbox.on .comic-letterbox-dots {
+  opacity: 1;
+}
+
+.comic-letterbox-caption {
+  position: absolute;
+  left: 5vw;
+  bottom: 13vh;
+  padding: 8px 16px;
+  font: italic 900 22px/1 system-ui, sans-serif;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+  background: #ffc23d;
+  border: 3px solid var(--ink);
+  box-shadow: 5px 5px 0 var(--ink);
+  transform: skewX(-8deg);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.comic-letterbox.on .comic-letterbox-caption:not(:empty) {
+  opacity: 1;
+}

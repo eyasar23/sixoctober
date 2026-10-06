@@ -278,10 +278,11 @@ export const tuning = {
     mouseSensitivity: 0.0022,
     invertY: false,
     /**
-     * Pitch limits, radians. Positive = camera above looking down. Looking up from below is kept
-     * small: low camera angles between buildings were disorienting (stage 1A feedback).
+     * Pitch limits, radians. Positive = camera above looking down. The camera itself never goes
+     * below groundClearance: looking further up tilts the view instead (stage 1A feedback: low
+     * angles between buildings were disorienting).
      */
-    minPitch: -0.22,
+    minPitch: -0.5,
     maxPitch: 1.25,
     /** Pitch the camera drifts back to while the mouse rests, radians. */
     restPitch: 0.32,
@@ -308,6 +309,8 @@ export const tuning = {
     rollDamping: 5,
     /** Look ahead along the velocity, seconds of travel (capped at 5 m). */
     lookAhead: 0.3,
+    /** Landing on a ledge with E: a short framed shot of the hero against the city (signature moment). */
+    perchCinematic: true,
     /** Slowly turn behind the direction of travel when the mouse rests this long (s). */
     autoAlign: true,
     autoAlignDelay: 1.5,
@@ -359,6 +362,11 @@ export const tuning = {
     landingDust: true,
     /** Freeze frames on a superhero landing, s (creative; 0 = off). */
     hitStop: 0.07,
+    /** Mode switch show (signature moment): comic panel, power burst and a beat of slow motion. */
+    modeSwitchShow: true,
+    /** Time scale and real seconds of the mode switch slow motion. */
+    modeSwitchSlowMo: 0.3,
+    modeSwitchTime: 0.3,
     /** Comic "THUD!" lettering on superhero landings (creative). */
     comicImpact: true,
   },

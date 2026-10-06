@@ -1,3 +1,4 @@
+import { palette } from '../config/palette';
 import type { ModeDefinition } from './modeBand';
 
 /**
@@ -20,7 +21,7 @@ export const titanMode: ModeDefinition = {
   },
   glow: '#FFA21F',
   accent: '#2B2830',
-  costume: { armor: true, weight: 1 },
+  costume: { armor: true, weight: 1, hoodie: palette.titanHoodie, jeans: palette.titanJeans },
   movement: (tuning) => tuning.titan.movement,
   strikes: 'heavy',
 };

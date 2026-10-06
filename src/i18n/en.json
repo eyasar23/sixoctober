@@ -20,6 +20,11 @@
   "state.wallRun": "WALL RUN",
   "state.wallClimb": "WALL CLIMB",
   "state.dive": "DIVE",
+  "state.perch": "PERCHED",
+  "state.charge": "CHARGING",
+  "state.pound": "GROUND POUND",
+  "state.action": "FIGHT",
+  "state.down": "DOWN",
 
   "hint.grounded": "Shift sprint · Space jump (hold for higher) · Jump off and hold Shift to swing",
   "hint.airborne": "Hold Shift swing · Space zip to crosshair · C dive",
@@ -28,10 +33,19 @@
   "hint.wallRun": "Space jump across · Let go of Shift to drop",
   "hint.wallClimb": "W / S climb · Shift faster · Space jump off",
   "hint.dive": "Shift swing out of the dive · Space zip · C stop diving",
+  "hint.perch": "Space leap off · then Shift to swing · E next ledge",
+  "hint.charge": "Let go of Space to jump",
+  "hint.pound": "",
+  "hint.action": "Left click punch · Right click kick · Q counter",
+  "hint.down": "",
+
+  "mode.grapple": "GRAPPLE",
+  "mode.titan": "TITAN",
 
   "comic.land.0": "THUD!",
   "comic.land.1": "WHUMP!",
   "comic.land.2": "KRAK!",
+  "comic.pound": "KRA-THOOM!",
 
   "brand.0": "HEXA COLA",
   "brand.1": "NEON NOODLE",

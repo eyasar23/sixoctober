@@ -35,6 +35,8 @@ export interface Costume {
   armor: boolean;
   /** 0 light … 1 heavy: wider, lower stance, heavier stride. */
   weight: number;
+  hoodie: string;
+  jeans: string;
 }
 
 export interface ModeDefinition {

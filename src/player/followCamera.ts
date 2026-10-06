@@ -38,6 +38,8 @@ export interface CameraShot {
   /** Camera offset to its right, m. */
   side: number;
   fov: number;
+  /** Dutch angle, radians (a tilted comic-panel frame). */
+  roll: number;
   blendIn: number;
   blendOut: number;
 }
@@ -294,7 +296,13 @@ export class FollowCamera {
     const floor = world.supportHeight(camX, camZ, 0.2, 0.2, p.y + 0.5) + c.groundClearance;
     const floorPitch = Math.asin(MathUtils.clamp((floor - p.y) / Math.max(this.arm, 0.5), -1, 1));
     this.groundPitchFloor += (floorPitch - this.groundPitchFloor) * (1 - Math.exp(-12 * dt));
-    if (pitch < this.groundPitchFloor) pitch = this.groundPitchFloor;
+    // Looking up past the floor tilts the view up from where the camera is, instead of the camera
+    // sinking toward the street: aiming at roof edges still works, the camera never goes low.
+    let tilt = 0;
+    if (pitch < this.groundPitchFloor) {
+      tilt = Math.min(this.groundPitchFloor - pitch, 1);
+      pitch = this.groundPitchFloor;
+    }
 
     this.dir.set(sinYaw * Math.cos(pitch), Math.sin(pitch), cosYaw * Math.cos(pitch));
     this.offset.set(cosYaw * side, 0, -sinYaw * side);
@@ -316,7 +324,7 @@ export class FollowCamera {
     } else if (state === 'wallRun') {
       rollTarget = -(subject.wallNormal.x * rightX + subject.wallNormal.z * rightZ) * c.wallRunRoll * DEG;
     }
-    rollTarget *= 1 - shotWeight;
+    rollTarget = rollTarget * (1 - shotWeight) + (shot ? shot.roll * shotWeight : 0);
     this.roll += (rollTarget - this.roll) * (1 - Math.exp(-c.rollDamping * dt));
 
     // Trauma shake: strength is trauma², smooth noise on rotation and position.
@@ -333,7 +341,7 @@ export class FollowCamera {
       p.y + this.dir.y * this.arm + n2 * shake * 0.25,
       p.z + this.dir.z * this.arm + this.offset.z,
     );
-    this.lookAt.set(p.x + this.offset.x, p.y, p.z + this.offset.z);
+    this.lookAt.set(p.x + this.offset.x, p.y + Math.tan(tilt) * this.arm, p.z + this.offset.z);
     cam.up.set(0, 1, 0);
     cam.lookAt(this.lookAt);
     cam.rotateZ(this.roll + n3 * shake * 0.05);

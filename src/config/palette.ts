@@ -37,6 +37,14 @@ export const palette = {
   skin: '#DFA78A',
   hair: '#261420',
   ink: '#140A1C',
+  /** Titan costume: charcoal hoodie and trousers, armour plates with amber light lines. */
+  titanHoodie: '#4A3D40',
+  titanJeans: '#2F2A36',
+  armor: '#2B2830',
+  armorLight: '#FFA21F',
+  /** Crime zone: hot red-orange (the light pillar, warnings, the warm tint near a crime). */
+  crime: '#FF4A2E',
+  crimeHot: '#FF8A2A',
   neonCyan: '#65C4E4',
   lampAmber: '#E6AB30',
 } as const;
