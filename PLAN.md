@@ -9,6 +9,7 @@ Ayrıntılar `BRIEF.md` Bölüm 7'de. Bir aşama, "bitti sayılır" şartı sağ
   - [x] Test sahnesi (gökyüzü, sis, ~30 bina, bloom, kapsül oyuncu, F1 paneli)
   - [x] Blender bulut testi (GLB + önizleme render'ı, sonuç `NOTLAR.md`'de)
   - [x] typecheck, test ve build geçiyor; PR açıldı
+  - [x] Vercel önizleme derlemesi başarılı (Ready)
   - [ ] Emirhan önizleme linkinde sahneyi kontrol etti
 - [ ] **1. Vitrin sürümü** (bulut): her şeyin kaba hâli: stilize şehir, koddan figür kahraman, sivil hareket + Kanca salınması, kamera ve hız efektleri, bileklikle 2 mod geçişi, HUD, bir suç sahnesi (2-3 düşman, basit vuruş), açılış menüsü.
   Öncelik: hareket hissi > görsel stil > HUD > mod geçişi > suç sahnesi > menü.

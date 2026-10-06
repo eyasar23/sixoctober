@@ -20,7 +20,9 @@ Sonraki ajan sohbet geçmişini görmez; bağlam bu dosya, `BRIEF.md` ve `PLAN.m
 ## 2026-10-06 — Aşama 0: kurulum ve hat testi
 
 - **Ajan / ortam:** Claude Code (bulut). Ubuntu 24.04, Node 22, 4 çekirdek, 16 GB RAM, ekran kartı yok.
-- **Branch / PR:** `claude/ecstatic-bardeen-6fncjx` → `main`. Brief'teki ad `asama-0-kurulum`; bulut oturumu kendi branch'ini atadığı için Emirhan oturum branch'ini seçti.
+- **Branch / PR:** `claude/ecstatic-bardeen-6fncjx` → `main`, [PR #1](https://github.com/eyasar23/sixoctober/pull/1). Brief'teki ad `asama-0-kurulum`; bulut oturumu kendi branch'ini atadığı için Emirhan oturum branch'ini seçti.
+- **Vercel:** PR'ın derlemesi Vercel'de başarılı (durum: Ready). Önizleme (branch'in son sürümünü gösterir): https://sixoctober-git-claude-ecstatic-bardeen-6fncjx-emirhan-45f6.vercel.app
+  Bu bulut ortamının ağ politikası `*.vercel.app` adreslerini engelliyor; ajan linki açamadı. Sahnenin orada açıldığını Emirhan doğrulamalı.
 - **Bu oturumda Emirhan'ın verdiği kararlar:**
   - Ekrandaki yazılar İngilizce ve `src/i18n/en.json`'da ("Stage 0 — pipeline test"); hız birimi `km/h`.
   - Vercel projesi repoya bağlı.
@@ -74,6 +76,7 @@ apt-get install -y blender python3-numpy
 - three 0.186.x'e bağlı: postprocessing 6.39.5 three'nin 0.187'den küçük sürümlerini istiyor. three'yi yükseltmeden önce postprocessing'in desteğini kontrol et.
 - SwiftShader'da `GridHelper` çizgilerinin kameraya doğru uzananları çizilmedi; bu yüzden zemin ızgarası dokuyla yapıldı (her GPU'da aynı görünür).
 - F1'de tarayıcının yardım sayfası `preventDefault` ile engelleniyor; gerçek Chrome/Edge'de doğrulanmadı.
+- Bulut ajanı Vercel önizlemelerini açamıyor (ağ politikası `*.vercel.app`'i engelliyor). İstenirse ortam ayarlarında Network access → Custom → Allowed domains'e `*.vercel.app` eklenebilir. Önizlemeler Vercel girişi istiyorsa (Deployment Protection) yine de açılmayabilir.
 
 ### Sıradaki adım
 
