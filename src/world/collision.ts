@@ -261,7 +261,9 @@ export class CollisionWorld {
       const py1 = box.maxY - (c.y - hy);
       const pz0 = c.z + hz - box.minZ;
       const pz1 = box.maxZ - (c.z - hz);
-      const smallest = Math.min(px0, px1, py0, py1, pz0, pz1);
+      // A box standing on the ground cannot be left downward (that would push through the street).
+      const down = box.minY <= this.groundY + 1e-3 ? Infinity : py0;
+      const smallest = Math.min(px0, px1, down, py1, pz0, pz1);
       const skin = 1e-3;
       if (smallest === py1) c.y += py1 + skin;
       else if (smallest === px0) c.x -= px0 + skin;

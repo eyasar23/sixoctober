@@ -45,6 +45,11 @@ export class PostFx {
     this.composer.addPass(new EffectPass(camera, this.chromatic, this.speedLines, this.vignette));
   }
 
+  /** 0..1: how close a crime is (warm tint). */
+  setTension(value: number): void {
+    this.grade.tension = value * this.tuning.fx.crimeTint;
+  }
+
   setSize(width: number, height: number): void {
     this.composer.setSize(width, height);
   }

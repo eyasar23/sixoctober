@@ -259,6 +259,110 @@ export const tuning = {
     landShockImpact: 22,
   },
 
+  /** Interface. */
+  ui: {
+    /** Show the HUD (the comic words and banners stay). */
+    hud: true,
+  },
+
+  /** Fights (stage 1B, combat v1). Times in seconds, damage in health points. */
+  combat: {
+    // Player strikes: left click punch, right click kick, three in a row make a combo.
+    punchTime: 0.3,
+    kickTime: 0.38,
+    /** The third strike (finisher) takes this much longer. */
+    finisherExtra: 0.1,
+    /** Share of a strike's time at which it connects (after the wind-up). */
+    hitAt: 0.42,
+    /** A buffered press starts the next strike at this share of the current one. */
+    chainAt: 0.6,
+    /** The combo goes on if the next press comes within this after a strike ends. */
+    comboWindow: 0.35,
+    punchDamage: 10,
+    kickDamage: 14,
+    finisherDamage: 24,
+    /** Reach of a strike and the distance the hero lunges to reach a target, m. */
+    reach: 2.1,
+    lungeRange: 7,
+    lungeSpeed: 13,
+    /** Push on a normal hit and on the finisher (m/s), finisher lift (m/s). */
+    knockback: 2.5,
+    finisherKnockback: 10,
+    finisherLift: 6,
+    /** Titan: strikes are slower, hit harder and also hit everyone this close to the target (m). */
+    heavyTimeScale: 1.35,
+    heavyDamageScale: 1.7,
+    heavyKnockbackScale: 1.6,
+    heavyArea: 2.6,
+    /** Freeze frames on a hit and on a finisher, s. */
+    hitStop: 0.055,
+    finisherHitStop: 0.1,
+    // Counter (Q while an enemy shows "!!")
+    counterRange: 4.5,
+    counterDamage: 38,
+    counterTime: 0.42,
+    /** Q with nothing to counter: locked out this long (no spamming). */
+    counterMissLock: 0.45,
+    // Kanca rope pull (E with an enemy under the crosshair)
+    pullRange: 32,
+    /** Largest angle between the crosshair and the enemy, degrees. */
+    pullAngle: 9,
+    pullSpeed: 26,
+    pullStun: 0.9,
+    // The hero's health
+    playerHealth: 100,
+    /** Health comes back after this long without a hit, at this rate per second. */
+    regenDelay: 4,
+    regenRate: 12,
+    /** Knocked out: back on the feet nearby after this long. */
+    respawnDelay: 2.4,
+    // Enemies
+    enemyHealth: 60,
+    bruteHealth: 120,
+    /** m/s */
+    enemyRunSpeed: 5.4,
+    enemyStrafeSpeed: 2.1,
+    /** Enemies notice the hero this close (m) and fight at this distance. */
+    aggroRange: 30,
+    engageRange: 3.1,
+    /** "!!" wind-up before an attack, s: the counter window. */
+    warnTime: 0.65,
+    bruteWarnTime: 0.85,
+    attackTime: 0.3,
+    /** The swing steps in at this speed (m/s), so it reaches from the fighting distance. */
+    attackLunge: 9,
+    attackReach: 2.2,
+    recoverTime: 0.55,
+    enemyDamage: 12,
+    bruteDamage: 18,
+    attackCooldownMin: 1.1,
+    attackCooldownMax: 2.3,
+    /** Enemies allowed to wind up or attack at the same time (readable fights). */
+    maxAttackers: 1,
+    hitstunTime: 0.38,
+    downTime: 1.3,
+    getupTime: 0.6,
+  },
+
+  /** The crime loop. */
+  crime: {
+    /** New crimes start this far from the hero, m. */
+    minDistance: 250,
+    maxDistance: 450,
+    /** Enemies wake up when the hero comes this close, m. */
+    engageDistance: 45,
+    /** Next crime this long after one is stopped, s. */
+    nextCrimeDelay: 5,
+    /** Light pillar over the crime. */
+    pillar: true,
+    /** Warm red-orange tint, faster neon flicker and the alarm growing as the crime gets closer. */
+    tension: true,
+    /** Last enemy down: slow motion and a comic-panel frame (signature moment). */
+    finalBlowCinematic: true,
+    finalBlowSlowMo: 0.15,
+    finalBlowTime: 1.2,
+  },
+
   camera: {
     /** Arm length at rest and at top speed, m. */
     distance: 6.5,
@@ -362,6 +466,8 @@ export const tuning = {
     landingDust: true,
     /** Freeze frames on a superhero landing, s (creative; 0 = off). */
     hitStop: 0.07,
+    /** Warm red-orange tint near a crime, at full tension. */
+    crimeTint: 0.65,
     /** Mode switch show (signature moment): comic panel, power burst and a beat of slow motion. */
     modeSwitchShow: true,
     /** Time scale and real seconds of the mode switch slow motion. */
@@ -445,6 +551,8 @@ export const tuning = {
 export type Tuning = typeof tuning;
 export type MovementTuning = Tuning['movement'];
 export type TitanTuning = Tuning['titan'];
+export type CombatTuning = Tuning['combat'];
+export type CrimeTuning = Tuning['crime'];
 export type RopeTuning = Tuning['rope'];
 export type CameraTuning = Tuning['camera'];
 export type CityTuning = Tuning['city'];

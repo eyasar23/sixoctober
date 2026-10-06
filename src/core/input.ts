@@ -16,6 +16,8 @@ export class Input {
   private mouseY = 0;
   private wheel = 0;
   private locked = false;
+  /** Test hook: accept mouse buttons and the wheel without pointer lock (headless browsers). */
+  allowUnlocked = false;
   private readonly lockListeners: Array<(locked: boolean) => void> = [];
 
   /** Clicking `lockTarget` captures the mouse; Esc releases it (browser default). */
@@ -47,10 +49,27 @@ export class Input {
     window.addEventListener(
       'wheel',
       (event) => {
-        if (this.locked) this.wheel += event.deltaY;
+        if (this.locked || this.allowUnlocked) this.wheel += event.deltaY;
       },
       { passive: true },
     );
+    // Mouse buttons: left = Mouse0 (punch), right = Mouse2 (kick).
+    document.addEventListener('mousedown', (event) => {
+      if (!this.locked && !this.allowUnlocked) return;
+      const code = `Mouse${event.button}`;
+      this.pressed.add(code);
+      this.held.add(code);
+    });
+    document.addEventListener('mouseup', (event) => this.held.delete(`Mouse${event.button}`));
+    window.addEventListener('contextmenu', (event) => {
+      if (this.locked || event.target === lockTarget) event.preventDefault();
+    });
+  }
+
+  /** Forgets every buffered press (menus opening, respawn). */
+  clearPresses(): void {
+    this.pressed.clear();
+    this.wheel = 0;
   }
 
   /** One mouse-wheel notch since the last call: +1 away (scroll down), −1 toward, 0 none. */

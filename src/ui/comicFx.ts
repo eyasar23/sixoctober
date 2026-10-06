@@ -21,6 +21,8 @@ export interface WordStyle {
 export class ComicFx {
   readonly root: HTMLElement;
   private readonly words: HTMLElement[] = [];
+  private readonly bubbles: HTMLElement[] = [];
+  private nextBubble = 0;
   private readonly transformPanel: HTMLElement;
   private readonly transformName: HTMLElement;
   private readonly banner: HTMLElement;
@@ -50,6 +52,15 @@ export class ComicFx {
       });
       this.words.push(word);
       this.root.append(word);
+    }
+    for (let i = 0; i < 3; i++) {
+      const bubble = el('comic-bubble');
+      bubble.hidden = true;
+      bubble.addEventListener('animationend', () => {
+        bubble.hidden = true;
+      });
+      this.bubbles.push(bubble);
+      this.root.append(bubble);
     }
     this.flashLayer = el('comic-flash');
     this.transformPanel = el('comic-transform');
@@ -87,7 +98,7 @@ export class ComicFx {
     const shadow = SHADOW_COLORS[Math.floor(r() * SHADOW_COLORS.length)]!;
     const tilt = (r() * 2 - 1) * (8 + 10 * s);
     const skew = (r() * 2 - 1) * 12;
-    const size = 30 + 52 * s + r() * 10;
+    const size = 24 + 40 * s + r() * 8;
     word.replaceChildren();
     for (const letter of text) {
       const span = document.createElement('span');
@@ -118,6 +129,21 @@ export class ComicFx {
     const x = (this.projected.x * 0.5 + 0.5) * window.innerWidth;
     const y = (-this.projected.y * 0.5 + 0.5) * window.innerHeight;
     this.word(text, x, y, style);
+  }
+
+  /** A speech bubble (gang barks) above a world point. */
+  bubbleAt(text: string, at: Vector3, camera: Camera): void {
+    this.projected.copy(at).project(camera);
+    if (this.projected.z > 1 || this.projected.z < -1) return;
+    const bubble = this.bubbles[this.nextBubble]!;
+    this.nextBubble = (this.nextBubble + 1) % this.bubbles.length;
+    bubble.textContent = text;
+    bubble.style.setProperty('--x', `${((this.projected.x * 0.5 + 0.5) * window.innerWidth).toFixed(0)}px`);
+    bubble.style.setProperty('--y', `${((-this.projected.y * 0.5 + 0.5) * window.innerHeight).toFixed(0)}px`);
+    bubble.hidden = false;
+    bubble.classList.remove('play');
+    void bubble.offsetWidth;
+    bubble.classList.add('play');
   }
 
   /** Mode switch: a comic panel slashes across with halftone dots in the mode colour. */

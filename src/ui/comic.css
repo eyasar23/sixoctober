@@ -315,3 +315,58 @@
 .comic-letterbox.on .comic-letterbox-caption:not(:empty) {
   opacity: 1;
 }
+
+/* Speech bubbles (gang barks) ----------------------------------------------------------- */
+
+.comic-bubble {
+  position: absolute;
+  left: 0;
+  top: 0;
+  max-width: 220px;
+  padding: 8px 14px;
+  font: italic 800 16px/1.15 system-ui, sans-serif;
+  color: var(--ink);
+  background: #fff;
+  border: 3px solid var(--ink);
+  border-radius: 18px;
+  box-shadow: 4px 4px 0 rgb(20 10 28 / 60%);
+  transform: translate(var(--x), var(--y)) translate(-50%, -100%);
+  white-space: nowrap;
+}
+
+.comic-bubble::after {
+  content: '';
+  position: absolute;
+  left: 34%;
+  bottom: -14px;
+  width: 16px;
+  height: 14px;
+  background: #fff;
+  border-right: 3px solid var(--ink);
+  border-bottom: 3px solid var(--ink);
+  transform: skewX(30deg) rotate(30deg);
+}
+
+.comic-bubble.play {
+  animation: bubble-pop 1.7s ease-out both;
+}
+
+@keyframes bubble-pop {
+  0% {
+    opacity: 0;
+    transform: translate(var(--x), var(--y)) translate(-50%, -100%) scale(0.4);
+  }
+  10% {
+    opacity: 1;
+    transform: translate(var(--x), var(--y)) translate(-50%, -100%) scale(1.08);
+  }
+  18%,
+  85% {
+    opacity: 1;
+    transform: translate(var(--x), var(--y)) translate(-50%, -100%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--x), calc(var(--y) - 10px)) translate(-50%, -100%) scale(1);
+  }
+}

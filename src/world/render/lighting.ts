@@ -18,6 +18,8 @@ export class SceneLighting {
     xrayCam: new Uniform(new Vector3()),
     xrayHero: new Uniform(new Vector4(0, -1000, 0, 1)),
     xrayStrength: new Uniform(0),
+    /** Crime x, z, tension 0..1, radius: neon near it flickers harder. */
+    crimeZone: new Uniform(new Vector4(0, 0, 0, 1)),
   };
 
   constructor(private readonly tuning: Tuning) {

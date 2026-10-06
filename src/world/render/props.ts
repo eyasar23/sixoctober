@@ -49,6 +49,7 @@ const signFragment = /* glsl */ `
   uniform vec2 atlasGrid;
   uniform float glow;
   uniform float time;
+  uniform vec4 crimeZone;
   varying vec2 vUv;
   varying vec3 vNormalLocal;
   varying vec3 vColor;
@@ -59,8 +60,9 @@ const signFragment = /* glsl */ `
   void main() {
     xray(vWorldPos);
     vec3 color;
-    // Old neon flickers now and then.
-    float flicker = step(0.04, fract(sin(floor(time * 9.0) + vParams.y * 31.7) * 43758.5));
+    // Old neon flickers now and then; near a crime it stutters faster and more often.
+    float near = crimeZone.z * (1.0 - smoothstep(crimeZone.w * 0.3, crimeZone.w, distance(vWorldPos.xz, crimeZone.xy)));
+    float flicker = step(0.04 + 0.3 * near, fract(sin(floor(time * (9.0 + 18.0 * near)) + vParams.y * 31.7) * 43758.5));
     if (abs(vNormalLocal.z) > 0.5) {
       float col = mod(vParams.x, atlasGrid.x);
       float row = floor(vParams.x / atlasGrid.x);

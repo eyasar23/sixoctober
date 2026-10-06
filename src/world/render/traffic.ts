@@ -1,4 +1,4 @@
-import { BoxGeometry, Color, InstancedBufferAttribute, InstancedMesh, ShaderMaterial, Uniform } from 'three';
+import { BoxGeometry, Color, InstancedBufferAttribute, InstancedMesh, ShaderMaterial, Uniform, Vector3, Vector4 } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { palette } from '../../config/palette';
 import type { Tuning } from '../../config/tuning';
@@ -12,26 +12,71 @@ const vertexShader = /* glsl */ `
   attribute vec3 aColor;
   uniform float speedScale;
   uniform float trafficTime;
+  // x, z, radius: cars here shrink away (room for a crime scene).
+  uniform vec3 clearZone;
+  // x, z, time, radius of the last Titan shockwave.
+  uniform vec4 shock;
   varying vec3 vLocal;
   varying vec3 vNormalWorld;
   varying vec3 vColor;
   varying float vType;
   #include <fog_pars_vertex>
+
+  vec3 rotateAxis(vec3 v, vec3 axis, float angle) {
+    float c = cos(angle);
+    float s = sin(angle);
+    return v * c + cross(axis, v) * s + axis * dot(axis, v) * (1.0 - c);
+  }
+
   void main() {
     float type = aMotion.w;
     vec3 local = position;
     if (type > 1.5) local *= vec3(1.06, 1.35, 1.25);
+    vec2 dir = aLane.zw;
     float s = mod(aMotion.z + trafficTime * aMotion.y * speedScale, aMotion.x);
     // Shrink in and out at the ends of a lane instead of popping.
     local *= smoothstep(0.0, 20.0, s) * smoothstep(0.0, 20.0, aMotion.x - s);
-    vec2 dir = aLane.zw;
+
+    // Titan shockwave: cars that were close fly off and tumble, vanish, and drive back in later.
+    float since = trafficTime - shock.z;
+    float tumble = 0.0;
+    vec3 thrown = vec3(0.0);
+    vec3 axis = vec3(1.0, 0.0, 0.0);
+    if (shock.w > 0.0 && since > 0.0 && since < 9.0) {
+      float sHit = mod(aMotion.z + shock.z * aMotion.y * speedScale, aMotion.x);
+      vec2 atHit = aLane.xy + dir * sHit;
+      float k = 1.0 - smoothstep(shock.w * 0.5, shock.w, distance(atHit, shock.xy));
+      if (k > 0.0) {
+        if (since < 1.6) {
+          vec2 away = normalize(atHit - shock.xy + vec2(1e-3, 0.0));
+          float flight = clamp(since / 1.3, 0.0, 1.0);
+          s = sHit;
+          thrown = vec3(away.x, 0.0, away.y) * flight * 10.0 * k + vec3(0.0, sin(flight * 3.14159) * 7.0 * k, 0.0);
+          axis = vec3(-away.y, 0.0, away.x);
+          tumble = flight * 6.0 * k;
+          local *= since < 1.3 ? 1.0 : 1.0 - (since - 1.3) / 0.3;
+        } else {
+          local *= clamp(since - 8.0, 0.0, 1.0);
+        }
+      }
+    }
+    vec2 carXZ = aLane.xy + dir * s;
+    if (clearZone.z > 0.0) local *= smoothstep(clearZone.z * 0.65, clearZone.z, distance(carXZ, clearZone.xy));
+
     float yaw = atan(-dir.x, -dir.y);
     float c = cos(yaw);
     float sn = sin(yaw);
     vec3 rotated = vec3(local.x * c + local.z * sn, local.y, -local.x * sn + local.z * c);
-    vec3 world = vec3(aLane.x + dir.x * s, 0.0, aLane.y + dir.y * s) + rotated;
+    vec3 normalWorld = vec3(normal.x * c + normal.z * sn, normal.y, -normal.x * sn + normal.z * c);
+    if (tumble > 0.0) {
+      rotated.y -= 0.8;
+      rotated = rotateAxis(rotated, axis, tumble);
+      rotated.y += 0.8;
+      normalWorld = rotateAxis(normalWorld, axis, tumble);
+    }
+    vec3 world = vec3(carXZ.x, 0.0, carXZ.y) + rotated + thrown;
     vLocal = position;
-    vNormalWorld = vec3(normal.x * c + normal.z * sn, normal.y, -normal.x * sn + normal.z * c);
+    vNormalWorld = normalWorld;
     vColor = aColor;
     vType = type;
     vec4 mvPosition = viewMatrix * vec4(world, 1.0);
@@ -70,7 +115,17 @@ const fragmentShader = /* glsl */ `
  * Cars flowing along the lanes, animated entirely on the GPU (no per-frame CPU work).
  * No collisions or AI: they are there for life and light.
  */
-export function createTraffic(city: CityData, lighting: SceneLighting, tuning: Tuning): { mesh: InstancedMesh; update(dt: number): void } {
+export interface Traffic {
+  mesh: InstancedMesh;
+  /** `dt`: simulated seconds, so slow motion slows the traffic too. */
+  update(dt: number): void;
+  /** Cars within `radius` of (x, z) shrink away (0 = off). */
+  setClearZone(x: number, z: number, radius: number): void;
+  /** A shockwave at (x, z): nearby cars are thrown. */
+  shock(x: number, z: number, radius: number): void;
+}
+
+export function createTraffic(city: CityData, lighting: SceneLighting, tuning: Tuning): Traffic {
   const geometry = mergeGeometries([
     new BoxGeometry(1.8, 0.75, 4.3).translate(0, 0.62, 0),
     new BoxGeometry(1.55, 0.55, 2.1).translate(0, 1.27, 0.25),
@@ -106,6 +161,8 @@ export function createTraffic(city: CityData, lighting: SceneLighting, tuning: T
 
   const trafficTime = new Uniform(0);
   const speedScale = new Uniform(tuning.city.trafficSpeed);
+  const clearZone = new Uniform(new Vector3(0, 0, 0));
+  const shock = new Uniform(new Vector4(0, 0, -100, 0));
   const material = new ShaderMaterial({
     vertexShader,
     fragmentShader,
@@ -113,6 +170,8 @@ export function createTraffic(city: CityData, lighting: SceneLighting, tuning: T
     uniforms: lighting.materialUniforms({
       trafficTime,
       speedScale,
+      clearZone,
+      shock,
       headColor: new Uniform(new Color(palette.headLight)),
       tailColor: new Uniform(new Color(palette.tailLight)),
       taxiColor: new Uniform(new Color(palette.taxi)),
@@ -124,11 +183,16 @@ export function createTraffic(city: CityData, lighting: SceneLighting, tuning: T
   mesh.frustumCulled = false;
   return {
     mesh,
-    /** `dt`: simulated seconds, so slow motion slows the traffic too. */
     update(dt: number) {
       trafficTime.value += dt;
       speedScale.value = tuning.city.trafficSpeed;
       mesh.visible = tuning.city.traffic;
+    },
+    setClearZone(x: number, z: number, radius: number) {
+      clearZone.value.set(x, z, radius);
+    },
+    shock(x: number, z: number, radius: number) {
+      shock.value.set(x, z, trafficTime.value, radius);
     },
   };
 }
