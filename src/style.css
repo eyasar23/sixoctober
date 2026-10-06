@@ -1,0 +1,42 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #261420;
+}
+
+canvas {
+  display: block;
+}
+
+.overlay {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #e9d1a2;
+  text-shadow: 0 1px 2px #000;
+  pointer-events: none;
+  user-select: none;
+}
+
+.hint {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: rgb(38 20 32 / 70%);
+  font: 13px/1.4 system-ui, sans-serif;
+  color: #dfc7c4;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
+.hint[hidden],
+.overlay [hidden] {
+  display: none;
+}
