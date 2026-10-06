@@ -92,7 +92,12 @@ await waitSim(0.2);
 await shot('09-panel.jpg');
 
 const telemetry = await page.evaluate(() => window.__game.telemetry);
+const stats = await page.evaluate(() => ({ ...window.__game.stats }));
 await browser.close();
+console.log(
+  `draw calls ${stats.drawCalls}, triangles ${stats.triangles}, ` +
+    `sim step ${(telemetry.simMs / telemetry.steps).toFixed(3)} ms, CPU per frame ${(telemetry.frameMs / telemetry.frames).toFixed(2)} ms (software WebGL)`,
+);
 
 const summary = Object.fromEntries(
   Object.entries(telemetry.states).map(([name, s]) => [name, { seconds: +(s.steps / 120).toFixed(2), avgKmh: Math.round(s.sumKmh / s.steps), maxKmh: Math.round(s.maxKmh) }]),

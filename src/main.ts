@@ -164,6 +164,10 @@ const telemetry = {
   /** Per state: steps, summed and highest speed (km/h). */
   states: {} as Record<string, { steps: number; sumKmh: number; maxKmh: number }>,
   events: {} as Record<string, number>,
+  /** CPU time: summed simulation step and whole-frame milliseconds. */
+  simMs: 0,
+  frameMs: 0,
+  frames: 0,
 };
 const recordStep = (): void => {
   telemetry.steps++;
@@ -251,12 +255,17 @@ const loop = new GameLoop(
   () => tuning.physics.maxStepsPerFrame,
   {
     step(dt) {
+      const started = testMode ? performance.now() : 0;
       buildSimInput();
       sim.step(dt, simInput);
       simTime += dt;
-      if (testMode) recordStep();
+      if (testMode) {
+        telemetry.simMs += performance.now() - started;
+        recordStep();
+      }
     },
     render(alpha, frameDt) {
+      const frameStarted = testMode ? performance.now() : 0;
       if (input.consumePress('KeyT')) slowMo = !slowMo;
       hitStop = Math.max(0, hitStop - frameDt);
       loop.timeScale = hitStop > 0 ? 0.04 : slowMo ? tuning.debug.slowMoScale : 1;
@@ -352,6 +361,10 @@ const loop = new GameLoop(
         },
         camera,
       );
+      if (testMode) {
+        telemetry.frameMs += performance.now() - frameStarted;
+        telemetry.frames++;
+      }
     },
   },
 );
@@ -364,6 +377,7 @@ if (testMode) {
       sim,
       tuning,
       telemetry,
+      stats,
       cameraRig,
       simTime: () => simTime,
       setLockstep: (steps: number) => {

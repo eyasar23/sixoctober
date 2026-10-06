@@ -2,7 +2,7 @@
 
 Ayrıntılar `BRIEF.md` Bölüm 7'de. Bir aşama, "bitti sayılır" şartı sağlanınca işaretlenir.
 
-- [ ] **0. Kurulum** (bulut): iskelet, belgeler, Vercel hattı testi, Blender bulut testi.
+- [x] **0. Kurulum** (bulut): iskelet, belgeler, Vercel hattı testi, Blender bulut testi.
   *Bitti sayılır:* önizleme linkinde test sahnesi açılıyor; Blender sonucu raporlanmış.
   - [x] Proje iskeleti (Vite + TypeScript + Three.js + postprocessing + lil-gui + Vitest)
   - [x] Belgeler (AGENTS, CLAUDE, PLAN, NOTLAR, ASSETS, README) ve `vercel.json`
@@ -10,10 +10,12 @@ Ayrıntılar `BRIEF.md` Bölüm 7'de. Bir aşama, "bitti sayılır" şartı sağ
   - [x] Blender bulut testi (GLB + önizleme render'ı, sonuç `NOTLAR.md`'de)
   - [x] typecheck, test ve build geçiyor; PR açıldı
   - [x] Vercel önizleme derlemesi başarılı (Ready)
-  - [ ] Emirhan önizleme linkinde sahneyi kontrol etti
+  - [x] Emirhan önizlemeyi kontrol etti, PR #1 birleştirildi
 - [ ] **1. Vitrin sürümü** (bulut): her şeyin kaba hâli: stilize şehir, koddan figür kahraman, sivil hareket + Kanca salınması, kamera ve hız efektleri, bileklikle 2 mod geçişi, HUD, bir suç sahnesi (2-3 düşman, basit vuruş), açılış menüsü.
   Öncelik: hareket hissi > görsel stil > HUD > mod geçişi > suç sahnesi > menü.
-  *Bitti sayılır:* linkte baştan sona oynanabilir bir tur.
+  *Bitti sayılır:* linkte baştan sona oynanabilir bir tur. İki oturuma bölündü (görev metinleri `docs/asamalar/`).
+  - [x] **1A. Hareket çekirdeği ve görsel stil:** durum makinesi, koşu/zıplama, halatla salınma ve zincir, zip, dalış, duvarda koşma ve tırmanma, inişler, kamera, hız efektleri, şehir v1, görsel stil, geçici kahraman figürü, F1 paneli, testler ve duman testi.
+  - [ ] **1B. Mod geçişi, HUD, suç sahnesi, menü:** bileklikle Titan'a geçiş, oynanış HUD'u, ilk suç sahnesi ve dövüş, açılış menüsü.
 - [ ] **2. His ayarı** (bulut, gerekirse yerel ajan): salınma, kamera, hız ve kontroller; Emirhan'ın F1 paneli değerleriyle.
   *Bitti sayılır:* Emirhan "hareket iyi hissettiriyor" diyor.
 - [ ] **3. Karakter** (Emirhan: Meshy/Mixamo + bulut; ince ayar: yerel ajan + Blender): gerçek model ve animasyonlar, durum makinesine bağlı, animate on twos.

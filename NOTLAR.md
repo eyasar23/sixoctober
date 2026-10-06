@@ -17,6 +17,70 @@ Sonraki ajan sohbet geçmişini görmez; bağlam bu dosya, `BRIEF.md` ve `PLAN.m
 
 ---
 
+## 2026-10-06 — Aşama 1A: hareket çekirdeği ve görsel stil
+
+- **Ajan / ortam:** Claude Code (bulut). Ubuntu 24.04, Node 22, ekran kartı yok.
+- **Branch / PR:** `claude/ecstatic-bardeen-6fncjx` → `main` (PR #2). Branch kuralı değişti: bulut oturumunun atadığı branch kullanılır, sorulmaz.
+- **Görev metni:** `docs/asamalar/asama-1a.md`.
+- **Bu oturumda Emirhan'ın kararları:** branch kuralı yukarıdaki gibi; BRIEF Bölüm 1'deki kararların hepsi onaylandı. Kahramanın adı hâlâ yok.
+
+### Ne yapıldı
+
+- **Hareket çekirdeği** (`src/player/playerSim.ts`): durumlar Grounded, Airborne, Swinging, Zip, WallRun, WallClimb, Mantle, Dive, Landing. Saniyede 120 sabit adım (`src/core/loop.ts`), çizim adımlar arasında enterpole ediliyor; T ile ağır çekim.
+  - Koşu: ivmelenme eğrisi, frenleme, dönüşte hafif kayma, inişten gelen fazla hızın yavaş erimesi. Coyote time, zıplama tamponu, basılı tutma süresine göre zıplama yüksekliği.
+  - Çarpışma: eksene hizalı kutular üzerinde süpürmeli çarpışma ve kayma (`src/world/collision.ts`, `src/player/mover.ts`). 100 m/s'de bile duvar delinmiyor. Kaldırım ve parapet gibi basamaklar otomatik aşılıyor.
+  - Halat (`src/player/grapple.ts`): bağlantı noktası gidilen yönde, önde ve yukarıda, görüş hattı açık bir cephe noktası olarak seçiliyor; sağ/sol sırayla değişiyor. İp gerilince uzamıyor, gevşeyince sarkıyor. Konum tabanlı kısıt kullanılıyor, enerji eklemiyor (testli). WASD ile pompalanabiliyor.
+  - Salınım düzlemi yardımı: halat cepheye çizilir, ama fizik dönme noktası hareket düzlemine kaydırılır. Böylece salınım duvara değil cadde boyunca akar. Bu olmadan zincir duvarlara çarpıp bozuluyordu.
+  - Shift basılıyken salınım yay sonunda kendiliğinden bırakılır (ileri ve yukarı itkiyle) ve tepe noktasında yeni halat atılır. Uzun caddede durmadan salınma buradan geliyor.
+  - Zip: nişangâhtaki noktaya çekilme. Çatı kenarına gelirse kenarın üstüne çıkar ve hızın bir kısmını korur; duvara gelirse duvara yapışır.
+  - Dalış: C ile. Shift ile dalıştan salınıma geçiliyor.
+  - Duvarda koşma: yeterli hız ve sığ açıyla, Shift basılıyken. Duvardan sıçrama da var.
+  - Tırmanma ve mantle: duvara doğru basınca tırmanma; tepeye varınca çatıya otomatik çıkış. Alçak engellerin üstünden atlama da aynı yolla oluyor.
+  - İnişler: yumuşak, çömelme, yuvarlanma (hızı korur) ve süper kahraman inişi (sarsıntı, toz, kısa donma anı, "THUD!" yazısı).
+  - R son güvenli noktaya döndürür. NaN, sahne dışına çıkma ya da düşme olursa otomatik geri dönülür.
+- **ModeBand** (`src/modes/modeBand.ts`): mod tanımları ve yetenek bayrakları. Simülasyon her yeteneği moda göre açıp kapatıyor. Titan şimdilik yer tutucu; geçiş 1B'de.
+- **Kamera** (`src/player/followCamera.ts`): yaylı kol, binalara girmez. Hızla genişleyen görüş açısı ve kol, salınırken halat tarafına yatma, duvarda koşarken duvardan uzağa yatma, ileri bakış, fare boştayken hareket yönüne dönme, tırmanırken duvara bakış, travma tabanlı sarsıntı, açılışta yaklaşma.
+- **Efektler** (`src/fx/`): bloom, Neutral ton eşleme, renk düzenlemesi, SMAA, hızla artan kromatik aberasyon, çizgi roman hız çizgileri (kendi shader'ımız, saniyede 12 kez yenilenir), vinyet. Kalite ön ayarları Low/Medium/High + Auto (`src/config/quality.ts`).
+- **Şehir v1** (`src/world/cityGen.ts` veri, `src/world/render/` çizim):
+  - 1040 m × 1040 m. Merkezde gökdelen kümesi, kenarlara doğru alçalan binalar; ana cadde (x = 0) uzun ve yüksek duvarlı bir salınma koridoru.
+  - Başlangıç kulesi ana caddenin güney ucunda; ilk karede cadde boyunca şehrin merkezine bakılıyor.
+  - Basamaklı kuleler; çatılarda parapetler, su depoları, klimalar ve yanıp sönen antenler.
+  - Pencereler bina shader'ında çiziliyor: renk sıcaklığı çeşitliliği, ara sıra yanıp sönen pencereler, zemin katta vitrin bantları; uzakta ortalama parıltıya dönüyor.
+  - Yol çizgileri ve yaya geçitleri zemin shader'ında. Kaldırımlar, lambalar ve altlarında sıcak ışık havuzları var.
+  - Uydurma markalı neon tabelalar ve 5 desenli hareketli reklam ekranları (marka adları `src/i18n/en.json`'da). GPU'da akan trafik ve ufukta üç katmanlı silüet.
+- **Kahraman** (`src/player/heroFigure.ts`): eklemli figür, koddan pozlar, "animate on twos", mürekkep konturu, halatı bırakınca takla. Halat şeridi `src/player/ropeVisual.ts`'te; gölge lekesi ve toz `src/fx/heroFx.ts`'te.
+- **Arayüz:** `src/ui/hud.ts` (durum etiketi, ipucu, hız, halat ve zip işaretleri, NO ANCHOR, başlangıç ekranı). F1 paneli `src/ui/debugPanel.ts`'te; gruplar Movement / Rope / Camera / Effects / City / Quality, içinde çizim çağrısı, üçgen ve FPS sayaçları var.
+- **Ses** (`src/audio/sound.ts`): Web Audio ile kodla üretilmiş rüzgâr, halat, zip, iniş ve yakın geçiş sesleri; panelden kapatılabiliyor.
+- **Testler:** 36 Vitest testi (halat enerjisi, bağlantı seçimi, durum geçişleri, şehir tekrarlanabilirliği, çarpışma, tam şehirde betikli koşu). Ayrıca duman testi `tools/smoke/stage1a.mjs`: başsız Chromium'da gerçek tuşlarla rota oynuyor ve `docs/previews/asama-1a/` altına görüntü kaydediyor.
+
+### Ölçümler (duman testi, yazılım WebGL)
+
+- Hızlar (km/h): koşu 46, sprint 70, salınma ortalaması 133 (en fazla 175), dalış 171, tırmanma 21 (Shift ile 25), duvarda koşu 80 civarı (giriş hızı korunur, sonra 80'e iner).
+- Çizim çağrısı 75 (efekt geçişleri ve kahramanın parçaları dahil), yaklaşık 165 bin üçgen, simülasyon adımı 0,03 ms.
+- Gerçek ekran kartında FPS ölçülmedi. Yazılım render'ında 4–8 FPS, bu bir şey göstermez.
+
+### Sonraki ajan için teknik notlar
+
+- Bütün sabitler `src/config/tuning.ts`'te. Hızlar km/h, ivmeler "kaç saniyede" cinsinden.
+- Simülasyon render'dan bağımsız (`PlayerSim` + `SimInput`), Node'da test edilebiliyor. Olaylar `sim.events` ile `main.ts`'e geliyor; efekt, ses ve HUD bunları tüketiyor.
+- `?test` adresinde `window.__game` test kancaları açılıyor (`setLockstep`, `simTime`, `telemetry`, `stats`, `cameraRig`). `?seed=` başka şehir, `?quality=` sabit kalite.
+- Pencere shader'ında örnek başına değerler `flat` geçiyor ve hash tam sayı tabanlı (`hashInt`). Kayan noktalı hash, enterpole edilen tohumla pencerelerde yatay çizgiler yapıyordu.
+- Kamera iniş yayı küçük sabit alt adımlarla entegre ediliyor. Kare süresiyle entegre edilince düşük FPS'te patlıyordu.
+- Shader kaynaklarında ASCII dışı karakter kullanma (bazı sürücüler reddediyor).
+- Aşama 0'ın Blender figürü (`public/assets/test/test_figure.glb`) artık sahnede değil; yerini koddan yapılan figür aldı. Dosya ve betik hat örneği olarak duruyor.
+
+### Bilinen sorunlar
+
+- Halat salınım sırasında binaların içinden geçebilir; sarılma (wrapping) yok. Bağlantı anında görüş hattı kontrol ediliyor.
+- Duvarda koşma ve tırmanma köşeyi dönmüyor; köşede bırakıyor.
+- Lamba direkleri, tabelalar ve arabalar çarpışmasız. Arabalar kavşaklarda birbirinin içinden geçiyor (1A kapsamı: sadece canlılık).
+- Dalışta hız sınırı (175 km/h) yüzünden yatay hız düşüyor, dalış dikleşiyor.
+- JS paketi 860 KB (gzip'li 259 KB); Vite uyarısı three.js ve postprocessing boyutundan geliyor.
+
+### Sıradaki adım
+
+Aşama 1B: bileklikle Titan'a geçiş, oynanış HUD'u, ilk suç sahnesi ve dövüş, açılış menüsü. Önce Emirhan'ın PR #2'deki his anketi cevaplarına ve F1 "Copy values" çıktısına göre `tuning.ts` güncellenmeli.
+
 ## 2026-10-06 — Aşama 0: kurulum ve hat testi
 
 - **Ajan / ortam:** Claude Code (bulut). Ubuntu 24.04, Node 22, 4 çekirdek, 16 GB RAM, ekran kartı yok.
