@@ -320,7 +320,7 @@ const loop = new GameLoop(
         }
       }
       let zipPoint: Vector3 | null = null;
-      if (sim.state === 'airborne' || sim.state === 'dive' || swinging) {
+      if (tuning.rope.showZipTarget && (sim.state === 'airborne' || sim.state === 'dive' || swinging)) {
         camera.getWorldDirection(lookDir);
         if (findZipTarget(world, camera.position, lookDir, sim.position, tuning.rope, sim.shape.halfWidth, zipPreview)) zipPoint = zipPreview.attach;
       }

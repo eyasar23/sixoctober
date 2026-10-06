@@ -193,6 +193,8 @@ export const tuning = {
     zipLedgeSnap: 4,
     /** Share of zip speed kept when popping over a roof edge. */
     zipPerchKeep: 0.35,
+    /** Ring on the zip target under the crosshair (fills up during the cooldown). */
+    showZipTarget: true,
 
     /** Show where the next rope will attach while in the air. */
     showAnchorPreview: true,

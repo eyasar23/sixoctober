@@ -115,6 +115,7 @@
   "panel.zipSpeed": "Zip speed (km/h)",
   "panel.zipRange": "Zip range (m)",
   "panel.zipCooldown": "Zip cooldown (s)",
+  "panel.showZipTarget": "Show zip target ring",
   "panel.showAnchorPreview": "Show next anchor",
 
   "panel.distance": "Distance (m)",

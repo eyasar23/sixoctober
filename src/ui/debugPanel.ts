@@ -101,6 +101,7 @@ export function createDebugPanel(tuning: Tuning, stats: PanelStats, actions: Pan
     ['zipSpeed', [60, 250, 1]],
     ['zipRange', [20, 150, 1]],
     ['zipCooldown', [0, 3, 0.05]],
+    ['showZipTarget'],
   ]);
 
   group(gui, 'panel.camera', tuning.camera as unknown as Record<string, unknown>, [
