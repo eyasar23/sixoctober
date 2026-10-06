@@ -702,11 +702,20 @@ export class PlayerSim {
       v.y += r.releaseUpBoost * (0.4 + 0.6 * rising);
       this.capSpeed(this.tuning.movement.topSpeed * KMH);
     }
-    this.rope.active = false;
+    this.detachRope(boost);
     this.timeSinceRelease = 0;
     this.airTime = 0;
-    this.events.push({ type: 'ropeRelease', boosted: boost, speed: v.length() });
     this.setState('airborne');
+  }
+
+  /**
+   * Lets go of the rope and reports it, whatever the reason (Shift released, landing, a wall,
+   * a zip, a mode switch), so the rope never stays drawn to the building.
+   */
+  private detachRope(boosted: boolean): void {
+    if (!this.rope.active) return;
+    this.rope.active = false;
+    this.events.push({ type: 'ropeRelease', boosted, speed: this.velocity.length() });
   }
 
   private tryZip(input: SimInput): boolean {
@@ -727,6 +736,7 @@ export class PlayerSim {
     this.zipDuration = distance / this.zipSpeedNow + 0.4;
     this.jumpBufferTimer = 0;
     this.chainPending = false;
+    this.detachRope(false);
     this.events.push({ type: 'zipStart' });
     this.setState('zip');
     return true;
@@ -931,7 +941,7 @@ export class PlayerSim {
   }
 
   private setState(next: MoveState): void {
-    if (next !== 'swinging') this.rope.active = false;
+    if (next !== 'swinging') this.detachRope(false);
     if (next !== 'grounded') this.sprinting = false;
     this.state = next;
     this.stateTime = 0;
@@ -1104,7 +1114,7 @@ export class PlayerSim {
     this.previousPosition.copy(point);
     this.velocity.set(0, 0, 0);
     this.yaw = yaw;
-    this.rope.active = false;
+    this.detachRope(false);
     this.chainPending = false;
     this.onGround = true;
     this.jumpBufferTimer = 0;

@@ -108,6 +108,7 @@
   "panel.releaseForwardBoost": "Release kick forward (km/h)",
   "panel.releaseUpBoost": "Release kick up (m/s)",
   "panel.ropeJumpUp": "Space on rope: hop up (m/s)",
+  "panel.retractTime": "Rope reel-back time (s)",
   "panel.autoChain": "Auto-chain while Shift held",
   "panel.autoReleaseAngle": "Auto-release angle (°)",
   "panel.reattachDelay": "Next rope delay (s)",

@@ -80,6 +80,7 @@ export function createDebugPanel(tuning: Tuning, stats: PanelStats, actions: Pan
     ['releaseForwardBoost', [0, 50, 1]],
     ['releaseUpBoost', [0, 15, 0.5]],
     ['ropeJumpUp', [0, 20, 0.5]],
+    ['retractTime', [0.05, 0.6, 0.01]],
     ['autoChain'],
     ['autoReleaseAngle', [20, 90, 1]],
     ['reattachDelay', [0, 0.5, 0.01]],

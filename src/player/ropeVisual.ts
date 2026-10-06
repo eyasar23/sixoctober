@@ -16,16 +16,21 @@ const WIDTH = 0.05;
 /** Seconds for the rope to fly out, plus a little per metre. */
 const SHOT_TIME = 0.06;
 const SHOT_PER_METRE = 0.0012;
-const RETRACT_TIME = 0.16;
 const SPARK_TIME = 0.22;
+/** A released rope whips: a travelling wave this wide (m) that dies out as it reels in. */
+const WHIP_AMPLITUDE = 0.45;
+const WHIP_SPEED = 38;
 
 /**
  * The rope as a camera-facing ribbon: shoots out from the hand, hangs with a sag while slack,
- * pulls straight when taut and snaps back on release. A small spark flashes where it hooks.
+ * pulls straight when taut and, once released, comes loose, whips and reels back into the hand.
+ * A small spark flashes where it hooks.
  */
 export class RopeVisual {
   readonly mesh: Mesh;
   readonly spark: Mesh;
+  /** Seconds a released rope takes to reel back in (tuning.rope.retractTime). */
+  retractTime = 0.25;
   private readonly positions: Float32Array;
   private readonly geometry = new BufferGeometry();
   private readonly material: MeshBasicMaterial;
@@ -38,6 +43,7 @@ export class RopeVisual {
   private readonly tangent = new Vector3();
   private readonly toCamera = new Vector3();
   private readonly side = new Vector3();
+  private readonly whipAxis = new Vector3();
   private readonly cameraPosition = new Vector3();
   private phase: 'off' | 'shooting' | 'attached' | 'retracting' = 'off';
   private time = 0;
@@ -79,10 +85,17 @@ export class RopeVisual {
     this.shotDuration = SHOT_TIME;
   }
 
+  /** The rope comes loose at the far end and reels back in. */
   release(): void {
-    if (this.phase === 'off') return;
+    if (this.phase === 'off' || this.phase === 'retracting') return;
     this.phase = 'retracting';
     this.time = 0;
+  }
+
+  /** Gone at once (respawn, teleport). */
+  hide(): void {
+    this.phase = 'off';
+    this.mesh.visible = false;
   }
 
   /**
@@ -91,10 +104,14 @@ export class RopeVisual {
    */
   update(dt: number, hand: Vector3, target: Vector3 | null, slack: number, camera: Camera): void {
     this.time += dt;
+    // Nothing to hold on to any more: never leave a rope hanging from the building.
+    if (!target && (this.phase === 'attached' || this.phase === 'shooting')) this.release();
     if (target && this.phase !== 'retracting') this.target.copy(target);
     this.from.copy(hand);
 
     let reach = 1;
+    let whip = 0;
+    let ribbonSlack = this.phase === 'attached' ? slack : 0.6;
     if (this.phase === 'shooting') {
       this.shotDuration = SHOT_TIME + this.from.distanceTo(this.target) * SHOT_PER_METRE;
       reach = Math.min(this.time / this.shotDuration, 1);
@@ -103,23 +120,36 @@ export class RopeVisual {
         this.sparkTime = 0;
       }
     } else if (this.phase === 'retracting') {
-      reach = 1 - Math.min(this.time / RETRACT_TIME, 1);
-      if (reach <= 0) this.phase = 'off';
+      // Loose first (it sags and whips), then it snaps back into the hand.
+      const p = Math.min(this.time / Math.max(this.retractTime, 0.02), 1);
+      reach = 1 - p * p;
+      whip = 1 - p;
+      ribbonSlack = 0.8 + p;
+      if (p >= 1) this.phase = 'off';
     }
     this.mesh.visible = this.phase !== 'off';
-    if (this.mesh.visible) this.buildRibbon(reach, this.phase === 'attached' ? slack : 0.6, camera);
+    if (this.mesh.visible) this.buildRibbon(reach, ribbonSlack, whip, camera);
     this.updateSpark(dt, camera);
   }
 
-  private buildRibbon(reach: number, slack: number, camera: Camera): void {
+  private buildRibbon(reach: number, slack: number, whip: number, camera: Camera): void {
     this.end.lerpVectors(this.from, this.target, reach);
     const length = this.from.distanceTo(this.end);
     const sag = length * 0.12 * slack;
     camera.getWorldPosition(this.cameraPosition);
+    if (whip > 0) {
+      // Wave across the line of sight so it reads on screen.
+      this.whipAxis.subVectors(this.end, this.from).cross(this.toCamera.subVectors(this.cameraPosition, this.from));
+      const axisLength = this.whipAxis.length();
+      if (axisLength > 1e-6) this.whipAxis.multiplyScalar(1 / axisLength);
+      else whip = 0;
+    }
+    const amplitude = Math.min(WHIP_AMPLITUDE, length * 0.08) * whip;
     for (let i = 0; i <= SEGMENTS; i++) {
       const s = i / SEGMENTS;
       this.point.lerpVectors(this.from, this.end, s);
       this.point.y -= sag * 4 * s * (1 - s);
+      if (amplitude > 0) this.point.addScaledVector(this.whipAxis, Math.sin(s * Math.PI * 3 - this.time * WHIP_SPEED) * amplitude * s);
       if (i === 0) {
         const next = this.prev.lerpVectors(this.from, this.end, 1 / SEGMENTS);
         next.y -= sag * 4 * (1 / SEGMENTS) * (1 - 1 / SEGMENTS);

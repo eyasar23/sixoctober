@@ -183,6 +183,8 @@ export const tuning = {
     minAirTime: 0.05,
     /** Space while swinging without a zip target: let go with this upward kick, m/s. */
     ropeJumpUp: 8,
+    /** A released rope (Shift up, landing, wall) whips and reels back into the hand in this time, s. */
+    retractTime: 0.25,
 
     // Zip
     zipSpeed: 150,

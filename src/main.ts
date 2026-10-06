@@ -228,7 +228,7 @@ const handleEvent = (event: SimEvent): void => {
       if (event.type === 'nearMiss') cameraRig.addTrauma(0.12);
       break;
     case 'respawn':
-      rope.release();
+      rope.hide();
       hud.showRespawn();
       break;
     default:
@@ -300,6 +300,7 @@ const loop = new GameLoop(
       });
       hero.root.updateMatrixWorld(true);
       hero.ropeHand(sim.state === 'zip' || sim.rope.side >= 0 ? 1 : -1, hand);
+      rope.retractTime = tuning.rope.retractTime;
       rope.update(worldDt, hand, ropeTarget, swinging && !sim.rope.taut ? 1 : 0, camera);
       shadow.update(renderPosition, world.supportHeight(renderPosition.x, renderPosition.z, 0.3, 0.3, renderPosition.y + 0.05));
       dust.update(worldDt);
