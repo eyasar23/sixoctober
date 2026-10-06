@@ -146,6 +146,7 @@ export class Hud {
     map.append(this.minimap.canvas, el('hud-map-north'));
 
     this.crosshair = el('hud-crosshair');
+    this.crosshair.append(el('hud-crosshair-key', t('hud.ePrompt')));
     this.chargeRing = el('hud-charge');
     this.combo = el('hud-combo');
     this.comboCount = el('hud-combo-count', '', 'span');

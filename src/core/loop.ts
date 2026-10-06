@@ -38,7 +38,8 @@ export class GameLoop {
       requestAnimationFrame(this.frame);
       return;
     }
-    const frameDt = Math.min((now - this.last) / 1000, 0.25);
+    // The first frame's time stamp can be earlier than start(): never step time backwards.
+    const frameDt = Math.min(Math.max((now - this.last) / 1000, 0), 0.25);
     this.last = now;
     const dt = 1 / this.stepRate();
     let alpha = 1;

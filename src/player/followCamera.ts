@@ -166,7 +166,8 @@ export class FollowCamera {
     this.initialised = false;
   }
 
-  update(dt: number, subject: CameraSubject, world: CollisionWorld): void {
+  update(frameDt: number, subject: CameraSubject, world: CollisionWorld): void {
+    const dt = Math.max(frameDt, 0);
     const c = this.tuning.camera;
     const v = subject.velocity;
     const speed = v.length();

@@ -367,6 +367,28 @@ canvas {
   width: 14px;
 }
 
+.hud-crosshair-key {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 8px);
+  display: none;
+  padding: 1px 6px;
+  font: 800 11px/1.3 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--ink);
+  background: var(--mode);
+  border-radius: 3px;
+  transform: translateX(-50%);
+}
+
+.hud-crosshair[data-target='enemy'] .hud-crosshair-key {
+  background: var(--crime);
+}
+
+.hud-crosshair[data-target='ledge'] .hud-crosshair-key,
+.hud-crosshair[data-target='enemy'] .hud-crosshair-key {
+  display: block;
+}
+
 .hud-charge {
   position: absolute;
   left: 50%;
