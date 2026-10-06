@@ -20,7 +20,9 @@ Sonraki ajan sohbet geçmişini görmez; bağlam bu dosya, `BRIEF.md` ve `PLAN.m
 ## 2026-10-06 — Aşama 1A: hareket çekirdeği ve görsel stil
 
 - **Ajan / ortam:** Claude Code (bulut). Ubuntu 24.04, Node 22, ekran kartı yok.
-- **Branch / PR:** `claude/ecstatic-bardeen-6fncjx` → `main` (PR #2). Branch kuralı değişti: bulut oturumunun atadığı branch kullanılır, sorulmaz.
+- **Branch / PR:** `claude/ecstatic-bardeen-6fncjx` → `main`, [PR #2](https://github.com/eyasar23/sixoctober/pull/2). Branch kuralı değişti: bulut oturumunun atadığı branch kullanılır, sorulmaz.
+- **Vercel:** PR'ın derlemesi başarılı (durum: Ready). Önizleme: https://sixoctober-git-claude-ecstatic-bardeen-6fncjx-emirhan-45f6.vercel.app
+  Ajan linki açamıyor (ağ politikası `*.vercel.app`'i engelliyor); oyunun orada açıldığını Emirhan doğrulamalı.
 - **Görev metni:** `docs/asamalar/asama-1a.md`.
 - **Bu oturumda Emirhan'ın kararları:** branch kuralı yukarıdaki gibi; BRIEF Bölüm 1'deki kararların hepsi onaylandı. Kahramanın adı hâlâ yok.
 
