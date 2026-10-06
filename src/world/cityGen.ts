@@ -122,6 +122,9 @@ export interface CityData {
 export const BRAND_COUNT = 12;
 export const BILLBOARD_PATTERNS = 5;
 export const SLAB_HEIGHT = 0.15;
+/** Low wall around every roof: below step height, so it is stepped over. */
+export const PARAPET_HEIGHT = 0.35;
+const PARAPET_THICKNESS = 0.3;
 const SPAWN_TOWER = { minX: -24, maxX: 24, minZ: 476, maxZ: 516, height: 92 };
 const RESERVED: Rect = { minX: -30, minZ: 466, maxX: 30, maxZ: 520 };
 const AVENUE_LANES = [-9.5, -4, 4, 9.5];
@@ -141,7 +144,8 @@ export function generateCity(options: CityTuning): CityData {
     signs: [],
     billboards: [],
     lanes: [],
-    spawn: { x: 0, y: SPAWN_TOWER.height, z: SPAWN_TOWER.minZ + 4, yaw: 0 },
+    // Near the north edge, so the first frame looks straight down the main avenue.
+    spawn: { x: 0, y: SPAWN_TOWER.height, z: SPAWN_TOWER.minZ + 1.8, yaw: 0 },
   };
 
   // Roads -------------------------------------------------------------------------------
@@ -215,12 +219,14 @@ export function generateCity(options: CityTuning): CityData {
   // Traffic lanes ------------------------------------------------------------------------------------
   for (const road of city.roads) {
     const offsets = road.width >= options.avenueRoad ? AVENUE_LANES : STREET_LANES;
+    // The main avenue's lanes run on into the spawn tower, so its cars appear from inside it.
+    const laneMaxZ = road.axis === 'z' && road.center === 0 ? SPAWN_TOWER.minZ + 25 : road.maxZ;
     for (const offset of offsets) {
       const lane: Lane =
         road.axis === 'z'
           ? offset > 0 // right-hand traffic: east side drives north (−Z)
-            ? { x0: road.center + offset, z0: road.maxZ, x1: road.center + offset, z1: road.minZ, cars: 0, speed: 0, seed: 0 }
-            : { x0: road.center + offset, z0: road.minZ, x1: road.center + offset, z1: road.maxZ, cars: 0, speed: 0, seed: 0 }
+            ? { x0: road.center + offset, z0: laneMaxZ, x1: road.center + offset, z1: road.minZ, cars: 0, speed: 0, seed: 0 }
+            : { x0: road.center + offset, z0: road.minZ, x1: road.center + offset, z1: laneMaxZ, cars: 0, speed: 0, seed: 0 }
           : offset > 0 // south side drives east (+X)
             ? { x0: road.minX, z0: road.center + offset, x1: road.maxX, z1: road.center + offset, cars: 0, speed: 0, seed: 0 }
             : { x0: road.maxX, z0: road.center + offset, x1: road.minX, z1: road.center + offset, cars: 0, speed: 0, seed: 0 };
@@ -235,10 +241,28 @@ export function generateCity(options: CityTuning): CityData {
   return city;
 }
 
+/** The four low walls around a building's roof as [minX, minY, minZ, maxX, maxY, maxZ]. */
+export function parapets(b: Building): Array<[number, number, number, number, number, number]> {
+  const x0 = b.x - b.width / 2;
+  const x1 = b.x + b.width / 2;
+  const z0 = b.z - b.depth / 2;
+  const z1 = b.z + b.depth / 2;
+  const y0 = b.topY;
+  const y1 = b.topY + PARAPET_HEIGHT;
+  const t = PARAPET_THICKNESS;
+  return [
+    [x0, y0, z0, x1, y1, z0 + t],
+    [x0, y0, z1 - t, x1, y1, z1],
+    [x0, y0, z0 + t, x0 + t, y1, z1 - t],
+    [x1 - t, y0, z0 + t, x1, y1, z1 - t],
+  ];
+}
+
 /** Fills a collision world with the city's solid parts. */
 export function buildCollision(city: CityData, world: CollisionWorld): void {
   for (const b of city.buildings) {
     world.addBox(b.x - b.width / 2, b.baseY, b.z - b.depth / 2, b.x + b.width / 2, b.topY, b.z + b.depth / 2, ANCHORABLE | CLIMBABLE);
+    for (const [x0, y0, z0, x1, y1, z1] of parapets(b)) world.addBox(x0, y0, z0, x1, y1, z1, 0);
   }
   for (const s of city.blocks) world.addBox(s.minX, 0, s.minZ, s.maxX, SLAB_HEIGHT, s.maxZ, 0);
   for (const p of city.roofProps) {

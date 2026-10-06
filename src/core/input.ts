@@ -1,5 +1,10 @@
+/** Keys whose presses are remembered until a game system consumes them. */
+const TRACKED = new Set(['Space', 'KeyC', 'KeyR', 'KeyT', 'Tab', 'Digit1', 'Digit2']);
+/** Keys whose browser default (scrolling, focus change) is blocked. */
+const BLOCKED = new Set(['Space', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+
 /**
- * Keyboard state plus mouse movement while the pointer is locked.
+ * Keyboard state, buffered key presses and mouse movement while the pointer is locked.
  * Keys use KeyboardEvent.code, so WASD works the same on every keyboard layout.
  */
 export class Input {
@@ -8,14 +13,15 @@ export class Input {
   private mouseX = 0;
   private mouseY = 0;
   private locked = false;
+  private readonly lockListeners: Array<(locked: boolean) => void> = [];
 
   /** Clicking `lockTarget` captures the mouse; Esc releases it (browser default). */
   constructor(lockTarget: HTMLElement) {
     window.addEventListener('keydown', (event) => {
-      if (event.target instanceof HTMLInputElement) return; // typing in the tuning panel
-      if (!event.repeat) this.pressed.add(event.code);
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;
+      if (BLOCKED.has(event.code)) event.preventDefault();
+      if (!event.repeat && TRACKED.has(event.code)) this.pressed.add(event.code);
       this.held.add(event.code);
-      if (event.code === 'Space') event.preventDefault();
     });
     window.addEventListener('keyup', (event) => this.held.delete(event.code));
     window.addEventListener('blur', () => this.held.clear());
@@ -28,6 +34,7 @@ export class Input {
     });
     document.addEventListener('pointerlockchange', () => {
       this.locked = document.pointerLockElement === lockTarget;
+      for (const listener of this.lockListeners) listener(this.locked);
     });
     document.addEventListener('mousemove', (event) => {
       if (!this.locked) return;
@@ -40,25 +47,29 @@ export class Input {
     return this.locked;
   }
 
+  onPointerLockChange(listener: (locked: boolean) => void): void {
+    this.lockListeners.push(listener);
+  }
+
   isHeld(code: string): boolean {
     return this.held.has(code);
   }
 
-  /** True only during the frame in which the key went down. */
-  wasPressed(code: string): boolean {
-    return this.pressed.has(code);
+  get shiftHeld(): boolean {
+    return this.held.has('ShiftLeft') || this.held.has('ShiftRight');
+  }
+
+  /** True once per key press: the next call returns false until the key goes down again. */
+  consumePress(code: string): boolean {
+    return this.pressed.delete(code);
   }
 
   /** Mouse movement since the previous call, in pixels. */
-  takeMouseDelta(): { x: number; y: number } {
-    const delta = { x: this.mouseX, y: this.mouseY };
+  takeMouseDelta(out: { x: number; y: number }): { x: number; y: number } {
+    out.x = this.mouseX;
+    out.y = this.mouseY;
     this.mouseX = 0;
     this.mouseY = 0;
-    return delta;
-  }
-
-  /** Call once at the end of every frame. */
-  endFrame(): void {
-    this.pressed.clear();
+    return out;
   }
 }

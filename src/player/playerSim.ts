@@ -173,6 +173,11 @@ export class PlayerSim {
     return this.velocity.length();
   }
 
+  /** Side of the last rope anchor (−1 left, 1 right): anchor previews alternate the same way. */
+  get lastSide(): number {
+    return this.lastAnchorSide;
+  }
+
   get zipReady(): boolean {
     return this.zipCooldown <= 0;
   }
@@ -331,6 +336,7 @@ export class PlayerSim {
     const gravity = this.velocity.y < 0 ? m.gravity * m.fallGravityMult : m.gravity;
     this.applyGravity(dt, gravity, m.maxFallSpeed * KMH);
     this.applyDrag(dt, m.airDrag);
+    this.capSpeed(m.topSpeed * KMH);
     this.moveBody(dt, 0);
     if (this.handleAirContacts(input, false)) return true;
     this.checkNearMiss();
