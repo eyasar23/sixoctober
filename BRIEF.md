@@ -1,7 +1,7 @@
 # sixoctober — Oyun Brief'i
 
 > Projenin ana belgesi. Bu repoda çalışan her ajan (Claude Code bulut ya da yerel, Codex) işe başlamadan önce bu dosyayı okur.
-> Sahibi: Emirhan. Son güncelleme: 6 Ekim 2026 (Aşama 0).
+> Sahibi: Emirhan. Son güncelleme: 6 Ekim 2026 (Aşama 1A).
 
 ---
 
@@ -17,20 +17,20 @@
 
 ## 1. Kararlar
 
-Sahibi Emirhan. **[V]** = varsayılan; Emirhan değiştirene kadar geçerli.
+Sahibi Emirhan. Bu tablodaki kararların hepsi Emirhan tarafından **onaylandı** (Aşama 1A öncesi). Kahramanın adı hâlâ yok.
 
 | Konu | Karar |
 |---|---|
 | Tür | Üçüncü şahıs kamerayla, açık şehirde hareket ve dövüş odaklı aksiyon oyunu |
-| Platform | Tarayıcı (Chrome/Edge), masaüstü, klavye + fare. Oyun kolu sonra, mobil şimdilik yok [V] |
+| Platform | Tarayıcı (Chrome/Edge), masaüstü, klavye + fare. Oyun kolu sonra, mobil şimdilik yok (onaylandı) |
 | Teknoloji | Three.js + TypeScript + Vite; Vercel'de yayın |
-| Kahraman | Sıradan bir genç adam. Adı henüz yok; kodda `Hero` [V] |
-| Sivil görünüş | Kapüşonlu üst, kot, spor ayakkabı [V] |
-| Cihaz | Bileğinde, kendi tasarımımız olan kalın, altıgen yüzlü bir bileklik; aktif modun rengiyle yanan bir halka. Kodda `ModeBand` [V] |
-| İlk 2 mod | **Kanca** (`grapple`): hızlı; halatla salınma ve çekilme. **Titan** (`titan`): yavaş ama güçlü; şarjlı süper zıplama, yere vuruş, ağır yumruk [V] |
-| Mod renkleri | Kanca: elektrik camgöbeği + koyu mor. Titan: kehribar turuncu + kömür grisi [V]. Kırmızı-mavi ve yeşil bilerek kullanılmıyor (bkz. 2.8) |
-| Şehir | Kurgusal, gece, çizgi roman tarzı büyük şehir; düz cadde ızgarası + gökdelen merkezi [V]. Gerekçe: salınma uzun düz caddeler ve yüksek binalar ister. İstanbul esintisi (köprü silüeti, tabelalar, bir semt) sonra eklenebilir |
-| Oyun dili | Arayüz İngilizce; bütün metinler tek bir dil dosyasında, Türkçe sonra eklenecek [V] |
+| Kahraman | Sıradan bir genç adam. Adı henüz yok; kodda `Hero` (onaylandı) |
+| Sivil görünüş | Kapüşonlu üst, kot, spor ayakkabı (onaylandı) |
+| Cihaz | Bileğinde, kendi tasarımımız olan kalın, altıgen yüzlü bir bileklik; aktif modun rengiyle yanan bir halka. Kodda `ModeBand` (onaylandı) |
+| İlk 2 mod | **Kanca** (`grapple`): hızlı; halatla salınma ve çekilme. **Titan** (`titan`): yavaş ama güçlü; şarjlı süper zıplama, yere vuruş, ağır yumruk (onaylandı) |
+| Mod renkleri | Kanca: elektrik camgöbeği + koyu mor. Titan: kehribar turuncu + kömür grisi (onaylandı). Kırmızı-mavi ve yeşil bilerek kullanılmıyor (bkz. 2.8) |
+| Şehir | Kurgusal, gece, çizgi roman tarzı büyük şehir; düz cadde ızgarası + gökdelen merkezi (onaylandı). Gerekçe: salınma uzun düz caddeler ve yüksek binalar ister. İstanbul esintisi (köprü silüeti, tabelalar, bir semt) sonra eklenebilir |
+| Oyun dili | Arayüz İngilizce; bütün metinler tek bir dil dosyasında, Türkçe sonra eklenecek (onaylandı) |
 | Performans hedefi | Orta seviye bir dizüstünde 60 FPS |
 | Barındırma | Vercel Hobby (sadece prototip süresince; ücretsiz plan ticari olmayan kullanım için, satış aşamasında değişecek) |
 
@@ -223,7 +223,7 @@ docs/previews/   Blender önizleme görselleri
 
 ## 6. Ajan çalışma kuralları
 
-1. Her oturum tek aşama (ya da tek alt görev). Branch adı `asama-X-kisa-aciklama`. `main`'e asla doğrudan push yok; iş PR ile biter.
+1. Her oturum tek aşama (ya da tek alt görev). Bulut oturumu hangi branch'i atadıysa onu kullan, sorma; branch adının önemi yok. `main`'e asla doğrudan push yok; iş PR ile biter.
 2. Küçük ve anlamlı commit'ler.
 3. Oturum sonunda `NOTLAR.md`'ye ekle: ne yapıldı, ne kaldı, bilinen sorunlar, sıradaki adım. Bir sonraki ajan sohbet geçmişini görmez; bağlam sadece bu dosyalardır.
 4. Sır yok: API anahtarı, şifre, token koda ve repoya girmez (repo herkese açık).

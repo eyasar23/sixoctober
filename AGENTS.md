@@ -3,12 +3,13 @@
 Bu repoda çalışan her ajan (Claude Code bulut ya da yerel, Codex) için kısa kurallar.
 
 **İşe başlamadan önce `BRIEF.md`'yi baştan sona oku.** Sonra `PLAN.md`'ye ve `NOTLAR.md`'deki son kayda bak.
+Aşamaların ayrıntılı görev metinleri `docs/asamalar/` altında.
 Görevin, oturumu başlatan mesajda yazan aşamadır; sonraki aşamalara kendiliğinden geçme.
 Belirsiz ya da çelişkili bir şey görürsen kod yazmadan önce Emirhan'a sor.
 
 ## Kurallar
 
-1. Her oturum tek aşama (ya da tek alt görev). Branch adı `asama-X-kisa-aciklama`. Bulut oturumu sana başka bir branch atadıysa hangisini kullanacağını Emirhan'a sor. `main`'e doğrudan push yok; iş PR ile biter.
+1. Her oturum tek aşama (ya da tek alt görev). Bulut oturumu hangi branch'i atadıysa onu kullan, sorma; branch adının önemi yok. `main`'e doğrudan push yok; iş PR ile biter.
 2. Küçük ve anlamlı commit'ler.
 3. Oturum sonunda `NOTLAR.md`'ye kayıt ekle: ne yapıldı, ne kaldı, bilinen sorunlar, sıradaki adım. Sonraki ajan sohbet geçmişini görmez; bağlam sadece bu dosyalardır.
 4. Sır yok: API anahtarı, şifre ve token koda ya da repoya girmez (repo herkese açık).
