@@ -98,7 +98,7 @@ Gece yarısı şehir nefes alıyor; kahraman küçük ama durdurulamaz derecede 
 ## 4. Kamera
 
 - Yerden en az `camera.groundClearance` (1,1 m) yukarıda. Daha yukarı bakmak kamerayı alçaltmaz, bakışı yukarı eğer.
-- Kamera ile kahraman arasına giren bina zıplatılmaz, delik gibi yarı saydam olur (`GLSL_XRAY`, `camera.xray`). Kol sadece kameranın kendisi binanın içine düşecekse kısalır.
+- Kamera ile kahraman arasına giren bina (çatı eşyaları ve suç sahnesindeki araçlar da) zıplatılmaz, delik gibi yarı saydam olur (`GLSL_XRAY`, `camera.xray`). Kol sadece kameranın kendisi binanın içine düşecekse kısalır.
 - Duruma göre kadraj (`followCamera.ts`): salınırken geri ve yukarı (şehri göster), yerde yakın, duvarda koşarken yana kayık, dövüşte geniş.
 - Fare her zaman önceliklidir: fare kıpırdayınca sinematik çekim biter.
 - Sinematik çekimler (`CameraShot`): üçte bir kuralı (kahraman bir yanda, şehir öbür yanda), en fazla 0,12 rad eğik açı, alçak açı sadece kısa anlarda. Süreler 1,2–1,7 sn.

@@ -7,6 +7,7 @@ import {
   DoubleSide,
   Float32BufferAttribute,
   Group,
+  type Material,
   Mesh,
   MeshBasicMaterial,
   MeshLambertMaterial,
@@ -79,13 +80,18 @@ export class CrimeSceneView {
   private pillarSite: CrimeSite | null = null;
   private time = 0;
 
-  constructor() {
+  /**
+   * `seeThrough` adds the camera's see-through tunnel to a material (as on buildings), so a truck
+   * between the camera and the hero opens up instead of hiding the fight.
+   */
+  constructor(seeThrough?: (material: Material) => void) {
     const truckGeometry = buildTruck();
     const bagGeometry = buildBags();
     const body = new MeshLambertMaterial({ vertexColors: true });
     this.lightA = new MeshBasicMaterial({ color: new Color(palette.crime).multiplyScalar(3) });
     this.lightB = new MeshBasicMaterial({ color: new Color(palette.crimeHot).multiplyScalar(3) });
     const glass = new MeshBasicMaterial({ color: new Color('#F7E7C6').multiplyScalar(1.6) });
+    if (seeThrough) for (const material of [body, this.lightA, this.lightB, glass]) seeThrough(material);
     for (let i = 0; i < 2; i++) {
       const root = new Group();
       root.add(new Mesh(truckGeometry, body), new Mesh(bagGeometry, body));

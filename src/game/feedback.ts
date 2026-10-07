@@ -140,7 +140,8 @@ export class Feedback {
         if ((event.kind === 'hero' || event.kind === 'roll') && tuning.fx.landingDust) dust.burst(sim.position, weight);
         if (event.kind === 'hero') {
           if (tuning.fx.hitStop > 0) this.hitStop = Math.max(this.hitStop, tuning.fx.hitStop);
-          if (tuning.fx.comicImpact && sim.state !== 'pound') {
+          // A ground pound has its own word (one word per action).
+          if (tuning.fx.comicImpact && !event.pound) {
             this.at.copy(sim.position).setY(sim.position.y + 1.2);
             comic.wordAt(tKey(`comic.land.${this.landIndex++ % 3}`), this.at, camera, { strength: 0.75, color: '#FFC23D' });
           }

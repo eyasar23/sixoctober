@@ -97,7 +97,8 @@ export function createSimInput(): SimInput {
 
 export type SimEvent =
   | { type: 'jump' }
-  | { type: 'land'; kind: LandingKind; impact: number }
+  /** `pound`: the end of a ground pound (its shockwave event follows). */
+  | { type: 'land'; kind: LandingKind; impact: number; pound: boolean }
   | { type: 'ropeAttach' }
   | { type: 'ropeRelease'; boosted: boolean; speed: number }
   | { type: 'noAnchor' }
@@ -308,11 +309,16 @@ export class PlayerSim {
     this.setState('down');
   }
 
-  /** Back on the feet at a point (respawn after a knockout). */
+  /** Back on the feet at a point (respawn after a knockout): emits 'respawn' for the notice. */
   respawnAt(x: number, y: number, z: number, yaw: number): void {
+    this.placeAt(x, y, z, yaw);
+    this.events.push({ type: 'respawn' });
+  }
+
+  /** On the feet at a point, quietly (the tutorial start): no 'respawn' event. */
+  placeAt(x: number, y: number, z: number, yaw: number): void {
     this.tmp.set(x, y, z);
     this.resetAt(this.tmp, yaw);
-    this.events.push({ type: 'respawn' });
   }
 
   get speed(): number {
@@ -1304,7 +1310,7 @@ export class PlayerSim {
     this.landingKind = kind;
     this.chainPending = false;
     this.onGround = true;
-    this.events.push({ type: 'land', kind, impact });
+    this.events.push({ type: 'land', kind, impact, pound: this.state === 'pound' });
     const ti = this.tuning.titan;
     if (this.state === 'pound') {
       this.events.push({ type: 'shockwave', x: this.position.x, y: this.position.y, z: this.position.z, radius: ti.shockRadius, force: ti.shockForce, damage: ti.shockDamage, pound: true });

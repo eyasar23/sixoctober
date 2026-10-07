@@ -83,7 +83,7 @@ const perchOnTower = (): void => {
 perchOnTower();
 /** Tutorial start: the back of the spawn tower's roof, facing the avenue (room to sprint and jump off). */
 const toTutorialStart = (): void => {
-  sim.respawnAt(city.spawn.x, city.spawn.y, city.spawn.z + 32, city.spawn.yaw);
+  sim.placeAt(city.spawn.x, city.spawn.y, city.spawn.z + 32, city.spawn.yaw);
 };
 const hero = new HeroFigure(tuning);
 const rope = new RopeVisual();
@@ -99,7 +99,7 @@ scene.add(hero.root, rope.mesh, rope.spark, shadow.mesh, dust.group, fxPool.mesh
 const combat = new CombatSystem(tuning, sim, world);
 const enemyViews = new EnemyViews(tuning, world);
 const crime = new CrimeDirector(city, tuning.crime, combat);
-const crimeScene = new CrimeSceneView();
+const crimeScene = new CrimeSceneView((material) => lighting.addXray(material));
 scene.add(enemyViews.group, crimeScene.group);
 
 const cameraRig = new FollowCamera(tuning, window.innerWidth / window.innerHeight);
