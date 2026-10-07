@@ -182,6 +182,7 @@ export function createDebugPanel(tuning: Tuning, stats: PanelStats, actions: Pan
     ['warnTime', [0.15, 2, 0.05]],
     ['bruteWarnTime', [0.15, 2, 0.05]],
     ['attackReach', [1, 5, 0.1]],
+    ['attackHeight', [0.5, 6, 0.1]],
     ['enemyDamage', [0, 60, 1]],
     ['bruteDamage', [0, 80, 1]],
     ['attackCooldownMin', [0, 6, 0.1]],

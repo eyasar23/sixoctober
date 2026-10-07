@@ -186,7 +186,9 @@ export class Enemy {
         if (!this.attackHitDone && this.stateTime >= t.attackTime * 0.45) {
           this.attackHitDone = true;
           const facing = fx * toX + fz * toZ;
-          const hit = ctx.playerActive && distance <= t.attackReach && facing > 0.2;
+          // In reach, in front and at the same height (not the hero swinging by overhead).
+          const level = Math.abs(ctx.player.y - this.position.y) <= t.attackHeight;
+          const hit = ctx.playerActive && distance <= t.attackReach && facing > 0.2 && level;
           events.push({ type: 'attack', enemy: this, hit });
         }
         if (this.stateTime >= t.attackTime) this.setState('recover');

@@ -78,6 +78,13 @@ describe('enemy state machine', () => {
     const late = run([far], ctx2, 1, (e) => e.state === 'recover');
     const miss = late.find((e) => e.type === 'attack');
     expect(miss && miss.type === 'attack' && miss.hit).toBe(false);
+
+    // Out of reach overhead: the hero swings by 12 m above the enemy.
+    const below = new Enemy(3, 'grunt', 0, 0, -2.5, c, () => 0.5);
+    below.alerted = true;
+    const ctx3 = context(new Vector3(0, 12, 0));
+    const over = run([below], ctx3, 4, (e) => e.state === 'recover').find((e) => e.type === 'attack');
+    expect(over && over.type === 'attack' && over.hit).toBe(false);
   });
 
   it('only one enemy winds up at a time', () => {

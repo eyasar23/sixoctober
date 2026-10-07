@@ -331,7 +331,10 @@ export const tuning = {
     attackTime: 0.3,
     /** The swing steps in at this speed (m/s), so it reaches from the fighting distance. */
     attackLunge: 9,
+    /** A swing connects within this distance, m… */
     attackReach: 2.2,
+    /** …and this height difference, m (a hero swinging by overhead is out of reach). */
+    attackHeight: 1.8,
     recoverTime: 0.55,
     enemyDamage: 12,
     bruteDamage: 18,

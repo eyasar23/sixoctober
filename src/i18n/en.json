@@ -377,6 +377,7 @@
   "panel.warnTime": "Grunt \"!!\" time (s)",
   "panel.bruteWarnTime": "Boss \"!!\" time (s)",
   "panel.attackReach": "Enemy reach (m)",
+  "panel.attackHeight": "Enemy reach up / down (m)",
   "panel.enemyDamage": "Grunt damage",
   "panel.bruteDamage": "Boss damage",
   "panel.attackCooldownMin": "Attack pause min (s)",
