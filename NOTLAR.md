@@ -17,6 +17,53 @@ Sonraki ajan sohbet geçmişini görmez; bağlam bu dosya, `BRIEF.md` ve `PLAN.m
 
 ---
 
+## 2026-10-07 — Aşama 1B sonrası: Emirhan'ın geri bildirimi
+
+- **Ajan / ortam:** Claude Code (bulut).
+- **Durum:** Aşama 1B ([PR #3](https://github.com/eyasar23/sixoctober/pull/3)) birleştirildi. Emirhan önizlemede oynadı ve his anketini cevapladı. Cevapların tamamı olduğu gibi `docs/asamalar/asama-1b-geri-bildirim.md`'de.
+- **Bu kayıtta kod değişmedi.** Emirhan'ın isteğiyle sadece geri bildirim kaydedildi; Aşama 2'nin görev metnini Emirhan gönderecek.
+
+### His anketi (özet)
+
+| Soru | Cevap |
+|---|---|
+| Vuruş hissi | 4/5 |
+| Kombo ritmi | Sorun yok |
+| Karşı saldırı anı | 3/5 |
+| Düşman zorluğu | Aşırı kolay, daha zor olmalı |
+| Mod değişimi akışı bölüyor mu | Bölmüyor |
+| Titan Kanca'dan farklı mı | Evet, yeterince |
+| Havada Titan'a geçip yere vurma | 5/5 |
+| Kamera ve kenar hedefleme | Aşama 2'nin önceliği (aşağıda) |
+
+Genel his güzel, salınma fena değil.
+
+### Kararlar
+
+- Oyunun adı şimdilik **PROJECT SIXOCTOBER**; kahramanın adı sonra düşünülecek.
+- Türkçe ses efekti kelimeleri kalıyor.
+- Aynı anda **2 düşman** saldırabilir (`combat.maxAttackers: 2`; kodda henüz 1).
+- Yaratıcılık konusunda ajan yine serbest.
+
+### Aşama 2 (his ayarı) için iş listesi, öncelik sırasıyla
+
+1. **Kamera (en önemli).** Sorun fare hassasiyeti değil, açı. Sağa, sola ya da arkaya gidince kamera karakterin yönüne çok geç geliyor; kamera ile karakter senkron değil gibi. Binalara halat atarken açı özgür hissettirmiyor. Uzun oyunda yoruyor.
+   - Ajan notu (tahmin, doğrulanmadı): kamera arkaya dönmeye ancak fare 1,5 sn boşta kalınca ve yavaş başlıyor (`camera.autoAlignDelay` 1,5, `camera.autoAlignRate` 1,1). Duruma göre kadraj geçişi de yavaş (`camera.framingDamping` 2,5). İlk bakılacak yerler bunlar ve `src/player/followCamera.ts`.
+2. **Titan daha hızlı gezsin:** koşu 32 / sprint 48 km/h (`titan.movement`); şehirde dolaşma hızı artmalı.
+3. **Tırmanma iki modda da hızlansın:** Kanca 21 km/h (Shift ile 25), Titan 9 km/h (12) (`movement.climbSpeed`, `titan.movement.climbSpeed`).
+4. **İp atma hissi daha güçlü olsun:** halat atılırken görüntü, ses ve kamera geri bildirimi.
+5. **Karşı saldırı anı (3/5):** "!!" uyarısının okunurluğu ve Q penceresi.
+6. Aynı anda 2 saldıran düşman (yukarıdaki karar).
+
+### Aşama 5'e (dövüş ve görevler) kalanlar
+
+- Düşmanlar aşırı kolay: kesinlikle daha kuvvetli olmalı.
+- Çetenin ve düşmanların kimliği güçlendirilsin.
+
+### Sıradaki adım
+
+Emirhan'ın Aşama 2 görev metni. Görev metni gelince yukarıdaki listeyle birlikte okunmalı.
+
 ## 2026-10-07 — Aşama 1B: modlar, ilk suç ve dövüş, HUD, menü
 
 - **Ajan / ortam:** Claude Code (bulut). Ubuntu 24.04, Node 22, ekran kartı yok.
