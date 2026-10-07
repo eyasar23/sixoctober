@@ -15,7 +15,8 @@ Ayrıntılar `BRIEF.md` Bölüm 7'de. Bir aşama, "bitti sayılır" şartı sağ
   Öncelik: hareket hissi > görsel stil > HUD > mod geçişi > suç sahnesi > menü.
   *Bitti sayılır:* linkte baştan sona oynanabilir bir tur. İki oturuma bölündü (görev metinleri `docs/asamalar/`).
   - [x] **1A. Hareket çekirdeği ve görsel stil:** durum makinesi, koşu/zıplama, halatla salınma ve zincir, zip, dalış, duvarda koşma ve tırmanma, inişler, kamera, hız efektleri, şehir v1, görsel stil, geçici kahraman figürü, F1 paneli, testler ve duman testi.
-  - [ ] **1B. Mod geçişi, HUD, suç sahnesi, menü:** bileklikle Titan'a geçiş, oynanış HUD'u, ilk suç sahnesi ve dövüş, açılış menüsü.
+  - [x] **1B. Mod geçişi, HUD, suç sahnesi, menü:** 1A geri bildirim düzeltmeleri (halat, kamera, bak ve fırla, eğitim), bileklikle Titan'a geçiş, HUD v1, ilk suç sahnesi ve dövüş, açılış ekranı ve menü, sanat yönetimi belgesi (`docs/art-direction.md`), imza anlar, testler ve duman testi.
+  - [ ] Emirhan önizlemede baştan sona bir tur oynadı (PR'daki mini rota ve his anketi).
 - [ ] **2. His ayarı** (bulut, gerekirse yerel ajan): salınma, kamera, hız ve kontroller; Emirhan'ın F1 paneli değerleriyle.
   *Bitti sayılır:* Emirhan "hareket iyi hissettiriyor" diyor.
 - [ ] **3. Karakter** (Emirhan: Meshy/Mixamo + bulut; ince ayar: yerel ajan + Blender): gerçek model ve animasyonlar, durum makinesine bağlı, animate on twos.
