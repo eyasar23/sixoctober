@@ -313,7 +313,10 @@ export class Feedback {
     this.finalTime = 0;
     comic.setLetterbox(true, t('crime.finalCaption'));
     enemyViews.chest(enemy, this.chest);
-    fx.spawn('flare', this.chest, '#FFFFFF', 3, 0.4, 2.2);
+    // Keep the frame readable: the slow motion stretches flashes (they run on world time), so the
+    // white pop is small and short and the enemy's hit flash is cut down.
+    fx.spawn('flare', this.chest, '#FFFFFF', 1.4, 0.1, 1.2);
+    enemy.hitFlash = Math.min(enemy.hitFlash, 0.6);
     comic.wordAt(t('comic.final'), this.chest, camera, { strength: 1, color: '#FF5A3C' });
     sound.ko();
     // Side-on view of the hero and the falling enemy, slightly low and tilted.

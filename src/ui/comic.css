@@ -16,6 +16,11 @@
   display: none !important;
 }
 
+/* An open menu (pause, title) takes the screen: banners and words would show through its backdrop. */
+body:has(.menu:not([hidden])) .comic {
+  visibility: hidden;
+}
+
 /* Sound-effect words ------------------------------------------------------------------- */
 
 .comic-word {

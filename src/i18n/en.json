@@ -1,9 +1,7 @@
 {
-  "hud.stage": "Stage 1A",
   "hud.fps": "FPS {value}",
   "hud.quality": "Quality: {value}",
   "hud.speedUnit": "km/h",
-  "hud.keys": "R last safe spot · T slow motion · F1 tuning",
   "hud.slowMo": "SLOW-MO ×{value}",
   "hud.noAnchor": "NO ANCHOR",
   "hud.noLedge": "NO LEDGE",
@@ -15,10 +13,6 @@
   "hud.objectiveGo": "HEIST · {distance} M",
   "hud.objectiveFight": "STOP THE STATIC · {left} LEFT",
   "hud.respawn": "BACK TO SAFE SPOT",
-  "hud.startTitle": "sixoctober",
-  "hud.startClick": "Click to play",
-  "hud.startControls": "WASD move · Mouse look · Shift sprint / swing · Space jump / zip · C dive",
-  "hud.startTip": "Run off the roof and hold Shift to swing down the avenue",
 
   "state.grounded": "ON FOOT",
   "state.sprint": "SPRINT",
@@ -47,7 +41,8 @@
   "hint.charge": "Let go of Space to jump",
   "hint.pound": "",
   "hint.action": "Click punch · Right click kick · Q counter when you see !!",
-  "hint.fight": "Click punch · Right click kick · Q counter when you see !!",
+  "hint.fight": "Click punch · Right click kick · E pull in · Q counter on !!",
+  "hint.fightTitan": "Click heavy punch · Right click heavy kick · Q counter on !!",
   "hint.down": "",
 
   "mode.grapple": "GRAPPLE",

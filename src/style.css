@@ -38,11 +38,11 @@ canvas {
   z-index: 1;
 }
 
+/* Bottom right corner, under the speed: out of the way of the tutorial card and comic panels. */
 .hud-debug {
   position: absolute;
-  top: 8px;
-  left: 50%;
-  transform: translateX(-50%);
+  right: 30px;
+  bottom: 4px;
   font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   opacity: 0.7;
   text-shadow: 0 1px 2px #000;
@@ -56,7 +56,7 @@ canvas {
   display: grid;
   grid-template-columns: auto auto;
   grid-template-rows: auto auto;
-  column-gap: 12px;
+  column-gap: 16px;
   row-gap: 8px;
   align-items: center;
 }
@@ -154,6 +154,8 @@ canvas {
   border: 3px solid var(--cream);
   box-shadow: 5px 5px 0 var(--mode);
   transform: skewX(-12deg);
+  /* Pops grow to the right, away from the mode name. */
+  transform-origin: 0 50%;
 }
 
 .hud-state.pop {
@@ -184,7 +186,7 @@ canvas {
 .hud-speed {
   position: absolute;
   right: 28px;
-  bottom: 16px;
+  bottom: 20px;
   font: var(--comic);
   font-size: 52px;
   text-shadow:

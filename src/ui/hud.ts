@@ -191,6 +191,23 @@ export class Hud {
       this.hurt,
     );
     parent.append(this.root);
+    // One-shot animations drop their class when they end (or are cut short by hiding the HUD);
+    // a class left on would replay the animation every time the HUD is shown again.
+    const oneShots: Array<[HTMLElement, string]> = [
+      [this.flash, 'show'],
+      [this.hurt, 'show'],
+      [this.stateTag, 'pop'],
+      [this.mode, 'pop'],
+      [this.crimes, 'pop'],
+      [this.combo, 'pop'],
+    ];
+    for (const [element, name] of oneShots) {
+      const clear = (event: AnimationEvent): void => {
+        if (event.target === element) element.classList.remove(name);
+      };
+      element.addEventListener('animationend', clear);
+      element.addEventListener('animationcancel', clear);
+    }
   }
 
   setVisible(visible: boolean): void {
@@ -203,16 +220,12 @@ export class Hud {
   }
 
   showRespawn(): void {
-    this.flash.classList.remove('show');
-    void this.flash.offsetWidth;
-    this.flash.classList.add('show');
+    replay(this.flash, 'show');
   }
 
   /** Red edge flash when the hero takes a hit. */
   showHurt(): void {
-    this.hurt.classList.remove('show');
-    void this.hurt.offsetWidth;
-    this.hurt.classList.add('show');
+    replay(this.hurt, 'show');
   }
 
   update(dt: number, f: HudFrame, camera: Camera): void {
@@ -220,9 +233,7 @@ export class Hud {
     if (stateKey !== this.lastState) {
       this.lastState = stateKey;
       this.stateTag.textContent = tKey(`state.${stateKey}`);
-      this.stateTag.classList.remove('pop');
-      void this.stateTag.offsetWidth;
-      this.stateTag.classList.add('pop');
+      replay(this.stateTag, 'pop');
     }
     const hintKey = `hint.${hintFor(f.state, f.modeName, f.fighting)}`;
     if (hintKey !== this.lastHint) {
@@ -234,9 +245,7 @@ export class Hud {
       this.lastMode = f.modeName;
       this.modeName.textContent = f.modeName;
       this.root.style.setProperty('--mode', f.modeColor);
-      this.mode.classList.remove('pop');
-      void this.mode.offsetWidth;
-      this.mode.classList.add('pop');
+      replay(this.mode, 'pop');
     }
 
     // Health: the bar drops at once, a pale "lag" bar follows (shows how much a hit took).
@@ -249,9 +258,7 @@ export class Hud {
     if (f.stopped !== this.lastStopped) {
       this.lastStopped = f.stopped;
       this.crimesCount.textContent = String(f.stopped);
-      this.crimes.classList.remove('pop');
-      void this.crimes.offsetWidth;
-      this.crimes.classList.add('pop');
+      replay(this.crimes, 'pop');
     }
 
     // Text that changes every frame only refreshes a few times a second (cheaper layout).
@@ -285,9 +292,7 @@ export class Hud {
       this.lastCombo = f.combo;
       this.combo.hidden = f.combo < 2;
       this.comboCount.textContent = `×${f.combo}`;
-      this.combo.classList.remove('pop');
-      void this.combo.offsetWidth;
-      this.combo.classList.add('pop');
+      replay(this.combo, 'pop');
     }
 
     this.slowMo.hidden = f.slowMo === null;
@@ -356,8 +361,16 @@ function stateLabel(state: MoveState): string {
 
 function hintFor(state: MoveState, mode: string, fighting: boolean): string {
   const base = state === 'landing' || state === 'mantle' ? 'grounded' : state;
-  if (fighting && (base === 'grounded' || base === 'action')) return 'fight';
-  // Titan has its own hints where its moves differ.
-  if (mode === tKey('mode.titan') && (base === 'grounded' || base === 'airborne')) return `${base}Titan`;
+  // Titan has its own hints where its moves differ (no rope pull in a fight).
+  const titan = mode === tKey('mode.titan');
+  if (fighting && (base === 'grounded' || base === 'action')) return titan ? 'fightTitan' : 'fight';
+  if (titan && (base === 'grounded' || base === 'airborne')) return `${base}Titan`;
   return base;
+}
+
+/** Restarts a one-shot CSS animation. */
+function replay(element: HTMLElement, name: string): void {
+  element.classList.remove(name);
+  void element.offsetWidth;
+  element.classList.add(name);
 }

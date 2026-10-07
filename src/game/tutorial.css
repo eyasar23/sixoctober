@@ -101,3 +101,9 @@
     transform: translate(-50%, -60%) rotate(-8deg) scale(1);
   }
 }
+
+/* Out of the way while a menu (pause) is open. */
+body:has(.menu:not([hidden])) .tutorial,
+body:has(.menu:not([hidden])) .tutorial-stamp {
+  visibility: hidden;
+}
