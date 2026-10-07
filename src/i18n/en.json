@@ -95,6 +95,7 @@
   "crime.stoppedTitle": "CRIME STOPPED!",
   "crime.stoppedSub": "CRIMES STOPPED: {count}",
   "crime.finalCaption": "MEANWHILE, ON THE AVENUE…",
+  "crime.arriveCaption": "{count} OF THEM. ONE OF YOU.",
   "combat.downTitle": "KNOCKED OUT",
   "combat.downSub": "BACK ON YOUR FEET IN A MOMENT",
 
@@ -388,6 +389,7 @@
   "panel.nextCrimeDelay": "Next crime after (s)",
   "panel.pillar": "Light pillar",
   "panel.tension": "Tension near crimes",
+  "panel.arrivalBeat": "Arrival: beat and caption",
   "panel.finalBlowCinematic": "Last blow: slow-mo frame",
   "panel.finalBlowSlowMo": "Last blow: time scale",
   "panel.finalBlowTime": "Last blow: length (s)",

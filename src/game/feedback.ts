@@ -292,6 +292,13 @@ export class Feedback {
       case 'crimeEngaged': {
         const boss = this.d.combat.enemies.find((e) => e.role === 'brute' && e.health > 0);
         if (boss) this.bark(boss, this.words.bark);
+        // Arrival is a panel too: a short slow-motion beat, a narration box and a quick zoom.
+        if (this.d.tuning.crime.arrivalBeat) {
+          comic.narrate(t('crime.arriveCaption', { count: this.d.combat.aliveCount }), 2.4);
+          this.beat(0.45, 0.4);
+          this.d.cameraRig.punchFov(-4);
+          sound.alert();
+        }
         break;
       }
       case 'crimeStopped':

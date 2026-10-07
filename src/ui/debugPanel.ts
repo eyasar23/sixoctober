@@ -196,6 +196,7 @@ export function createDebugPanel(tuning: Tuning, stats: PanelStats, actions: Pan
     ['nextCrimeDelay', [0, 30, 0.5]],
     ['pillar'],
     ['tension'],
+    ['arrivalBeat'],
     ['finalBlowCinematic'],
     ['finalBlowSlowMo', [0.02, 1, 0.01]],
     ['finalBlowTime', [0.2, 3, 0.05]],

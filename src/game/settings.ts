@@ -77,6 +77,7 @@ export function applySettings(settings: Settings, tuning: Tuning, baseSensitivit
   tuning.fx.modeSwitchShow = settings.cinematics;
   tuning.camera.perchCinematic = settings.cinematics;
   tuning.crime.finalBlowCinematic = settings.cinematics;
+  tuning.crime.arrivalBeat = settings.cinematics;
 }
 
 /** Frames per second for a frame-rate choice (0 = as fast as the screen allows). */

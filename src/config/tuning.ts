@@ -357,6 +357,8 @@ export const tuning = {
     pillar: true,
     /** Warm red-orange tint, faster neon flicker and the alarm growing as the crime gets closer. */
     tension: true,
+    /** Arriving at the crime: a short slow-motion beat, a narration caption and a quick zoom. */
+    arrivalBeat: true,
     /** Last enemy down: slow motion and a comic-panel frame (signature moment). */
     finalBlowCinematic: true,
     finalBlowSlowMo: 0.15,

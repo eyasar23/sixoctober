@@ -321,6 +321,48 @@ body:has(.menu:not([hidden])) .comic {
   opacity: 1;
 }
 
+/* Narration caption (arriving at a crime) --------------------------------------------- */
+
+.comic-caption {
+  position: absolute;
+  left: 5vw;
+  top: 24vh;
+  max-width: 60vw;
+  padding: 9px 18px;
+  font: italic 900 24px/1 system-ui, sans-serif;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+  background: #ffc23d;
+  border: 3px solid var(--ink);
+  box-shadow: 6px 6px 0 var(--ink);
+  transform: skewX(-8deg);
+  opacity: 0;
+}
+
+.comic-caption.play {
+  animation: caption-in-out var(--d, 2.4s) ease-out;
+}
+
+@keyframes caption-in-out {
+  0% {
+    opacity: 0;
+    transform: translateX(-40px) skewX(-8deg);
+  }
+  8% {
+    opacity: 1;
+    transform: translateX(6px) skewX(-8deg);
+  }
+  14%,
+  82% {
+    opacity: 1;
+    transform: translateX(0) skewX(-8deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(0) skewX(-8deg);
+  }
+}
+
 /* Speech bubbles (gang barks) ----------------------------------------------------------- */
 
 .comic-bubble {

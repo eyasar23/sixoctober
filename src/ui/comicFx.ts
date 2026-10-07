@@ -30,6 +30,7 @@ export class ComicFx {
   private readonly bannerSub: HTMLElement;
   private readonly letterbox: HTMLElement;
   private readonly letterboxCaption: HTMLElement;
+  private readonly caption: HTMLElement;
   private readonly flashLayer: HTMLElement;
   private readonly projected = new Vector3();
   private nextWord = 0;
@@ -75,10 +76,15 @@ export class ComicFx {
     this.bannerTitle = el('comic-banner-title');
     this.bannerSub = el('comic-banner-sub');
     this.banner.append(this.bannerTitle, this.bannerSub);
+    this.caption = el('comic-caption');
+    this.caption.hidden = true;
+    this.caption.addEventListener('animationend', () => {
+      this.caption.hidden = true;
+    });
     this.letterbox = el('comic-letterbox');
     this.letterboxCaption = el('comic-letterbox-caption');
     this.letterbox.append(el('comic-letterbox-dots'), this.letterboxCaption);
-    this.root.append(this.flashLayer, this.transformPanel, this.banner, this.letterbox);
+    this.root.append(this.flashLayer, this.transformPanel, this.banner, this.letterbox, this.caption);
     parent.append(this.root);
   }
 
@@ -178,6 +184,16 @@ export class ComicFx {
     this.banner.classList.add('play');
     this.bannerTime = 0;
     this.bannerDuration = duration;
+  }
+
+  /** Narration box (a comic panel's caption) that slides in, holds and fades: `duration` s. */
+  narrate(text: string, duration: number): void {
+    this.caption.textContent = text;
+    this.caption.style.setProperty('--d', `${duration}s`);
+    this.caption.hidden = false;
+    this.caption.classList.remove('play');
+    void this.caption.offsetWidth;
+    this.caption.classList.add('play');
   }
 
   /** Letterbox bars, a panel border and halftone corners: a comic frame for a slow-motion beat. */
