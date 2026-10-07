@@ -1,5 +1,5 @@
 import GUI from 'lil-gui';
-import type { Tuning } from '../config/tuning';
+import type { CameraPreset, Tuning } from '../config/tuning';
 import { t, tKey } from '../i18n';
 
 /** How long the "Copied!" label stays on the button, ms. */
@@ -15,6 +15,8 @@ export interface PanelStats {
 export interface PanelActions {
   respawn(): void;
   rebuildCity(seed: number): void;
+  /** Keeps the menu and saved preference aligned with a preset changed through F1. */
+  cameraPresetChanged?(preset: CameraPreset): void;
 }
 
 type Range = [min: number, max: number, step?: number];
@@ -203,39 +205,95 @@ export function createDebugPanel(tuning: Tuning, stats: PanelStats, actions: Pan
     ['finalBlowTime', [0.2, 3, 0.05]],
   ]);
 
-  group(gui, 'panel.camera', tuning.camera as unknown as Record<string, unknown>, [
-    ['distance', [2, 15, 0.1]],
-    ['distanceAtSpeed', [2, 20, 0.1]],
-    ['height', [0.5, 3, 0.05]],
+  const camera = group(gui, 'panel.camera', tuning.camera as unknown as Record<string, unknown>, [
+    ['inputReference'],
+    ['showDebug'],
+    ['wallAngle', [35, 60, 1]],
+    ['wallAttachDelay', [0, 0.8, 0.01]],
     ['fov', [40, 100, 1]],
     ['fovAtSpeed', [50, 120, 1]],
     ['mouseSensitivity', [0.0005, 0.006, 0.0001]],
     ['invertY'],
-    ['swingRoll', [0, 20, 0.5]],
-    ['wallRunRoll', [0, 25, 0.5]],
-    ['lookAhead', [0, 1, 0.05]],
-    ['autoAlign'],
-    ['autoAlignRate', [0, 5, 0.1]],
-    ['followDamping', [2, 40, 1]],
+    ['minPitch', [-1.2, -0.2, 0.01]],
+    ['maxPitch', [0.7, 1.4, 0.01]],
     ['shake'],
     ['shakeIntensity', [0, 2, 0.05]],
-    ['minPitch', [-1.2, 0.3, 0.01]],
-    ['restPitch', [-0.3, 1, 0.01]],
     ['groundClearance', [0, 4, 0.05]],
-    ['autoAlignDelay', [0, 5, 0.1]],
     ['zoomNear', [0.3, 1, 0.01]],
     ['zoomFar', [1, 3, 0.05]],
-    ['groundDistance', [0.4, 1.5, 0.01]],
-    ['swingDistance', [0.6, 2.5, 0.01]],
-    ['swingHeight', [0, 5, 0.1]],
-    ['swingPitch', [-0.3, 0.6, 0.01]],
-    ['airDistance', [0.6, 2, 0.01]],
-    ['wallRunSide', [0, 5, 0.1]],
-    ['combatDistance', [0.6, 2.5, 0.01]],
-    ['framingDamping', [0.5, 10, 0.1]],
     ['xray', [0, 1, 0.05]],
     ['xrayRadius', [0.3, 4, 0.05]],
     ['perchCinematic'],
+  ]);
+  camera.add(tuning.camera, 'preset', {
+    [t('settings.cameraPreset.reference')]: 'reference',
+    [t('settings.cameraPreset.manual')]: 'manual',
+  }).name(t('settings.cameraPreset')).listen().onChange((preset: CameraPreset) => actions.cameraPresetChanged?.(preset));
+  for (const profileName of ['GROUND', 'COMBAT', 'AIR', 'WALL', 'PERCH'] as const) {
+    group(camera, `panel.camera.${profileName}`, tuning.camera.profiles[profileName], [
+      ['frameHeight', [0.03, 0.5, 0.005]],
+      ['pitch', [-75, 40, 1]],
+      ['lookAhead', [0, 0.5, 0.01]],
+      ['yawTime', [0.3, 3, 0.05]],
+      ['pitchTime', [0.1, 2, 0.05]],
+      ['transitionTime', [0.1, 2, 0.05]],
+      ['rollLimit', [0, 10, 0.5]],
+      ['pivotHeight', [0.5, 3, 0.05]],
+    ]);
+  }
+  group(camera, 'panel.camera.alignment', tuning.camera as unknown as Record<string, unknown>, [
+    ['mouseHold', [0, 1.5, 0.05]],
+    ['mouseResume', [0.05, 1, 0.05]],
+    ['minAlignSpeed', [0, 8, 0.1]],
+    ['strafeStart', [30, 90, 1]],
+    ['strafeEnd', [90, 135, 1]],
+    ['backwardAngle', [120, 180, 1]],
+    ['strafeWeight', [0, 1, 0.05]],
+    ['combatRange', [4, 20, 0.5]],
+    ['combatYawWeight', [0, 1, 0.05]],
+    ['combatFrameMargin', [0.5, 1, 0.05]],
+  ]);
+  group(camera, 'panel.camera.dynamicPitch', tuning.camera as unknown as Record<string, unknown>, [
+    ['airRisePitch', [-25, 5, 1]],
+    ['airDivePitch', [-60, -25, 1]],
+    ['airVerticalSpeed', [2, 30, 0.5]],
+    ['wallClimbPitch', [15, 30, 1]],
+    ['wallDescendPitch', [-60, -40, 1]],
+    ['wallVerticalSpeed', [0.1, 3, 0.1]],
+  ]);
+  group(camera, 'panel.camera.collision', tuning.camera as unknown as Record<string, unknown>, [
+    ['characterHeight', [1, 3, 0.05]],
+    ['minDistance', [1, 5, 0.1]],
+    ['maxDistance', [20, 80, 1]],
+    ['wallMinDot', [0.1, 0.5, 0.01]],
+    ['wallProbeDistance', [10, 80, 1]],
+    ['wallAngleMargin', [1, 10, 0.5]],
+    ['wallMaxViewAngle', [45, 60, 1]],
+    ['collisionRadius', [0.1, 1, 0.05]],
+    ['collisionPullIn', [5, 30, 0.5]],
+    ['collisionRecover', [0.5, 8, 0.1]],
+    ['maxPositionSpeed', [20, 160, 5]],
+    ['positionTime', [0.05, 0.5, 0.01]],
+    ['maxLookAhead', [0, 5, 0.1]],
+    ['minArm', [0.3, 2, 0.05]],
+    ['collisionSkin', [0.01, 0.2, 0.01]],
+    ['zoomDamping', [1, 20, 0.5]],
+    ['speedRangeStart', [0, 100, 1]],
+    ['speedRangeEnd', [100, 220, 1]],
+    ['fovDamping', [1, 15, 0.5]],
+  ]);
+  group(camera, 'panel.camera.feedback', tuning.camera as unknown as Record<string, unknown>, [
+    ['introTime', [1, 6, 0.1]],
+    ['introExtraDistance', [0, 25, 0.5]],
+    ['dipSpring', [20, 200, 5]],
+    ['dipDamping', [1, 40, 1]],
+    ['punchSpring', [20, 300, 5]],
+    ['punchDamping', [1, 40, 1]],
+    ['punchImpulse', [0, 30, 0.5]],
+    ['shakeDecay', [0.1, 5, 0.1]],
+    ['shakeAngle', [0, 0.1, 0.005]],
+    ['shakeRoll', [0, 0.15, 0.005]],
+    ['shotRollLimit', [0, 10, 0.5]],
   ]);
 
   const effects = group(gui, 'panel.effects', tuning.fx as unknown as Record<string, unknown>, [

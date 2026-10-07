@@ -17,6 +17,18 @@ Sonraki ajan sohbet geçmişini görmez; bağlam bu dosya, `BRIEF.md` ve `PLAN.m
 
 ---
 
+## 2026-10-07 — Aşama 2: referansa dayalı kamera
+
+- **Ajan / ortam:** Codex (yerel Windows). Referans görsel incelendi; oyun/tarayıcı testi yapılmadı.
+- **Branch / PR:** `asama-2-kamera`. Emirhan'ın talimatıyla commit, push ve PR yapılmadı. Görev metni birebir `docs/asamalar/asama-2-kamera.md`'ye kaydedildi.
+- **Ne yapıldı:** GROUND / COMBAT / AIR / WALL / PERCH profilleri, temel FOV ve kadraj hedefinden mesafe hesabı, kritik sönümlü geçiş, fare önceliği (0,6 sn tutma + 0,4 sn dönüş), duvarın açık tarafını seçme ve küre ışınıyla engel kontrolü. Duvara ilk temas 0,35 sn kadrajı koruyor; sonra dışarı/yan tarafa açılıyor. Tırmanma yukarı, iniş aşağı, yatay duvar koşusu cadde boyunca bakıyor. Dövüşte en yakın saldıran düşman yalnız okunuyor; kamera parallax hesabıyla onu kadraja alıyor. Destek duvarı mevcut bina saydamlığından dışlandı.
+- **Girdi / ayarlar:** Yerde basılı WASD yönü ayrı kamera yaw kopyasına bağlı; fare/tuş değişince yenileniyor. Halat seçimi, Shift, hareket fiziği ve dövüş/düşman kodu değiştirilmedi. Settings ve F1'de Reference (varsayılan) / Manual; F1'de beş profil, girdi referansı ve ölçüm satırı. Manual fare eğimini koruyor; durum değişince profil farkını uyguluyor. Eski kayıtlı kamera seçimi taşınıyor. Bütün yeni metinler `en.json`'da.
+- **Kontroller:** `npm run typecheck`, `npm run test` (119 test) ve `npm run build` geçti. Yeni bağımlılık ve dış varlık yok. Sanat yönetimindeki kamera kuralları güncellendi.
+- **Matematiksel ölçümler:** Node'da gerçek animasyonlu HeroFigure sınır kutusu ve sekiz köşesinin ekran projeksiyonu; temel FOV 68°, orta zoom, engelsiz sahne, konum sabit ve hız yalnız poz/bakış öngörüsü için verildi. Ortalama boy: GROUND %29,10 (koşu; aralık %28,28–29,51), COMBAT %24,37 (yumruğun ortası), AIR %7,39, WALL %9,36 (tırmanma; %8,94–9,56), PERCH %5,06 (%5,02–5,09). Bunlar oyun görüntüsü veya canlı hata ayıklama satırı ölçümü değildir. 90° yaw dönüşünün %95 süresi 30/60 FPS'te 1,167 sn, 144 FPS'te 1,153 sn.
+- **Ne kaldı / görsel kontrol:** Emirhan `http://127.0.0.1:5174/` üzerinde koşu-dönüş, A basılı düz hareket, salınma, duvara temas/tırmanma/iniş ve dövüşü denemeli. F1 → Camera → Show camera readout gerçek animasyonlu boy yüzdesini gösterir. Ufuk, duvar/şehir oranı, aşağı inişte karakterin ekrandaki konumu, dar alanlar, saydamlık ve bütün geçişlerin hissi görsel kontrol bekliyor. Bu kayıt Aşama 2'nin tümünü tamamlanmış saymaz.
+- **Bilinen sorunlar / performans:** Gerçek GPU/FPS ölçülmedi. Kamera engel ışınları CPU işi ekler; sınır kutusu ölçümü yalnız debug satırı açıkken çalışır ve varsayılan kapalıdır. Çok dar duvar aralığında çarpışma kadrajı hedef yüzdeden yakına çekebilir. Vite'ın mevcut büyük paket uyarısı sürüyor (997 KB civarı JS, gzip 302 KB).
+- **Sıradaki adım:** Emirhan'ın beş adımlık kamera denemesi ve F1 Copy values geri bildirimi. Diğer his ayarlarına bu oturumda geçilmedi.
+
 ## 2026-10-07 — Aşama 1B sonrası: Emirhan'ın geri bildirimi
 
 - **Ajan / ortam:** Claude Code (bulut).

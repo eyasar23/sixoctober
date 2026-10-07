@@ -1,4 +1,4 @@
-import { Scene, Vector3, WebGLRenderer } from 'three';
+import { Box3, Scene, Vector3, WebGLRenderer } from 'three';
 import { Sound } from './audio/sound';
 import { type CombatInput, CombatSystem } from './combat/combatSystem';
 import { EnemyViews } from './combat/enemyViews';
@@ -19,6 +19,7 @@ import { t, tKey } from './i18n';
 import { MODE_LIST } from './modes';
 import { ModeBand } from './modes/modeBand';
 import { FollowCamera } from './player/followCamera';
+import { projectedBoxHeight } from './player/cameraMath';
 import { createAnchorResult, createLedgeTarget, createZipTarget, findAnchor, findLedge, findZipTarget } from './player/grapple';
 import { HeroFigure } from './player/heroFigure';
 import { createSimInput, PlayerSim } from './player/playerSim';
@@ -115,6 +116,10 @@ const comic = new ComicFx(app);
 const sound = new Sound(tuning);
 const stats: PanelStats = { current: 'high', fpsValue: 0, drawCalls: 0, triangles: 0 };
 createDebugPanel(tuning, stats, {
+  cameraPresetChanged: (preset) => {
+    settings.cameraPreset = preset;
+    saveSettings(settings);
+  },
   respawn: () => sim.respawn(),
   rebuildCity: (seed) => {
     const url = new URL(window.location.href);
@@ -293,14 +298,36 @@ const combatInput: CombatInput = {
   camForwardZ: -1,
 };
 const held = (...codes: string[]): number => (codes.some((code) => input.isHeld(code)) ? 1 : 0);
+const movementKeys = ['KeyW', 'ArrowUp', 'KeyS', 'ArrowDown', 'KeyD', 'ArrowRight', 'KeyA', 'ArrowLeft'] as const;
+const cameraBounds = new Box3();
+const cameraReadout = document.createElement('div');
+cameraReadout.style.cssText = 'position:fixed;bottom:8px;left:8px;z-index:10;padding:5px 9px;background:#140a1cee;color:#f4e2b8;font:12px system-ui;pointer-events:none';
+cameraReadout.hidden = true;
+app.append(cameraReadout);
+/** Read only: prefer the closest enemy currently attacking, otherwise the nearest living enemy. */
+const cameraCombatTarget = (): Vector3 | null => {
+  let target: Vector3 | null = null;
+  let best = Infinity;
+  for (const enemy of combat.enemies) {
+    if (enemy.health <= 0) continue;
+    const distance = enemy.position.distanceTo(sim.position);
+    if (distance > tuning.camera.combatRange) continue;
+    const score = distance + (enemy.state === 'attack' || enemy.state === 'warn' ? 0 : tuning.camera.combatRange);
+    if (score < best) { best = score; target = enemy.position; }
+  }
+  return target;
+};
 const buildInput = (): void => {
   const forward = held('KeyW', 'ArrowUp') - held('KeyS', 'ArrowDown');
   const right = held('KeyD', 'ArrowRight') - held('KeyA', 'ArrowLeft');
   const yaw = cameraRig.yaw;
+  const mask = movementKeys.reduce((bits, key, index) => bits | (input.isHeld(key) ? 1 << index : 0), 0);
+  const groundInput = sim.onGround && sim.state !== 'perch';
+  const movementYaw = cameraRig.setMovementKeys(mask, groundInput);
   const fx = -Math.sin(yaw);
   const fz = -Math.cos(yaw);
-  let mx = fx * forward + Math.cos(yaw) * right;
-  let mz = fz * forward - Math.sin(yaw) * right;
+  let mx = -Math.sin(movementYaw) * forward + Math.cos(movementYaw) * right;
+  let mz = -Math.cos(movementYaw) * forward - Math.sin(movementYaw) * right;
   const length = Math.hypot(mx, mz);
   if (length > 1) {
     mx /= length;
@@ -329,6 +356,7 @@ const buildInput = (): void => {
 
 /** No player input (title screen, pause): the hero stands or stays perched. */
 const idleInput = (): void => {
+  cameraRig.setMovementKeys(0, false);
   simInput.moveX = 0;
   simInput.moveZ = 0;
   simInput.forward = 0;
@@ -475,15 +503,19 @@ const loop = new GameLoop(
           position: renderPosition,
           velocity: sim.velocity,
           state: sim.state,
-          wallNormal: sim.wallNormal,
+          wallNormal: sim.state === 'perch' ? sim.ledge.normal : sim.wallNormal,
           ropeAnchor: swinging ? sim.rope.anchor : null,
           combat: combat.intensity,
+          combatTarget: cameraCombatTarget(),
+          wallBox: sim.wallBox,
+          titleView: gameState === 'title',
         },
         world,
       );
       sky.position.copy(camera.position);
       heroChest.set(renderPosition.x, renderPosition.y + 1.1, renderPosition.z);
-      lighting.setXray(camera.position, heroChest, tuning.camera.xrayRadius, tuning.camera.xray);
+      const protectedWall = sim.state === 'perch' ? sim.ledge.box : sim.state === 'wallClimb' || sim.state === 'wallRun' ? sim.wallBox : null;
+      lighting.setXray(camera.position, heroChest, tuning.camera.xrayRadius, tuning.camera.xray, protectedWall);
 
       // Hero, rope and effects.
       let ropeTarget: Vector3 | null = swinging ? sim.rope.anchor : sim.state === 'zip' ? sim.zip.attach : null;
@@ -507,6 +539,18 @@ const loop = new GameLoop(
         charge: sim.charge,
       });
       hero.root.updateMatrixWorld(true);
+      cameraReadout.hidden = !tuning.camera.showDebug || gameState !== 'playing';
+      if (!cameraReadout.hidden) {
+        hero.figure.mesh.skeleton.update();
+        cameraBounds.setFromObject(hero.root, true);
+        cameraRig.measuredHeightPercent = projectedBoxHeight(camera, cameraBounds);
+        cameraReadout.textContent = t('camera.readout', {
+          profile: cameraRig.profile,
+          height: cameraRig.measuredHeightPercent.toFixed(1),
+          distance: cameraRig.distance.toFixed(1),
+          alignment: t(cameraRig.autoAlignActive ? 'camera.autoOn' : 'camera.autoOff'),
+        });
+      }
       hero.ropeHand(sim.state === 'zip' || pulled || sim.rope.side >= 0 ? 1 : -1, hand);
       rope.retractTime = tuning.rope.retractTime;
       rope.update(worldDt, hand, ropeTarget, swinging && !sim.rope.taut ? 1 : 0, camera);

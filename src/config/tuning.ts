@@ -5,6 +5,8 @@
  * Units: speeds marked km/h are converted to m/s where they are used. Other values are
  * metres, seconds, m/s, m/s² or degrees as noted.
  */
+export type CameraPreset = 'reference' | 'manual';
+
 export const tuning = {
   physics: {
     /** Fixed simulation rate, steps per second. */
@@ -369,20 +371,82 @@ export const tuning = {
   },
 
   camera: {
-    /** Arm length at rest and at top speed, m. */
-    distance: 6.5,
-    distanceAtSpeed: 9,
-    /** Look-at point above the feet, m. */
-    height: 1.7,
+    /** Reference follows travel; manual keeps mouse yaw. Both retain state framing. */
+    preset: 'reference' as CameraPreset,
+    /** Freeze ground movement's input yaw while the same movement keys are held. */
+    inputReference: true,
+    /** Projected character height, distance and alignment readout. */
+    showDebug: false,
+    /** Character framing calibration and arm limits, m. Framing uses the base FOV. */
+    characterHeight: 1.8,
+    minDistance: 2,
+    maxDistance: 50,
+    /** Each duration is the critically damped time to settle 95% of a stationary target. */
+    profiles: {
+      GROUND: { frameHeight: 0.24, pitch: -12, lookAhead: 0.05, yawTime: 1.15, pitchTime: 0.5, transitionTime: 0.5, rollLimit: 0, pivotHeight: 1.1 },
+      COMBAT: { frameHeight: 0.235, pitch: -21, lookAhead: 0.03, yawTime: 1.15, pitchTime: 0.5, transitionTime: 0.5, rollLimit: 0, pivotHeight: 1.4 },
+      AIR: { frameHeight: 0.065, pitch: -18, lookAhead: 0.06, yawTime: 1.35, pitchTime: 0.65, transitionTime: 0.5, rollLimit: 5, pivotHeight: 1.1 },
+      WALL: { frameHeight: 0.075, pitch: -15, lookAhead: 0, yawTime: 1.2, pitchTime: 0.65, transitionTime: 0.8, rollLimit: 0, pivotHeight: 1.1 },
+      PERCH: { frameHeight: 0.065, pitch: -18, lookAhead: 0, yawTime: 1, pitchTime: 0.6, transitionTime: 0.5, rollLimit: 0, pivotHeight: 1.1 },
+    },
+    /** Pitch is the viewing angle in degrees: negative looks down, positive looks up. */
+    airRisePitch: -8,
+    airDivePitch: -40,
+    airVerticalSpeed: 12,
+    wallClimbPitch: 22,
+    wallDescendPitch: -52,
+    wallVerticalSpeed: 0.5,
+    /** Mouse suppresses alignment immediately, then alignment fades in over mouseResume, s. */
+    mouseHold: 0.6,
+    mouseResume: 0.4,
+    /** Ground yaw alignment: full ahead, reduced sideways, disabled backwards. */
+    minAlignSpeed: 2,
+    strafeStart: 60,
+    strafeEnd: 120,
+    backwardAngle: 135,
+    strafeWeight: 0.35,
+    /** Wall oblique view, attach grace time, outside-plane constraint and open-side probe. */
+    wallAngle: 45,
+    wallAngleMargin: 4,
+    wallMaxViewAngle: 60,
+    wallAttachDelay: 0.35,
+    wallMinDot: 0.2,
+    wallProbeDistance: 40,
+    /** Read-only combat framing range, m, and attacking-target yaw influence (0..1). */
+    combatRange: 12,
+    combatYawWeight: 0.25,
+    /** Fraction of horizontal half-FOV available to the attacking enemy. */
+    combatFrameMargin: 0.9,
+    /** Camera motion limit m/s, position settling time s, and velocity look-ahead cap m. */
+    maxPositionSpeed: 80,
+    positionTime: 0.12,
+    maxLookAhead: 2,
+    /** Existing title reveal and feedback springs; fixed spring substep, s. */
+    introTime: 3.2,
+    introExtraDistance: 10,
+    springStep: 1 / 120,
+    dipSpring: 90,
+    dipDamping: 14,
+    punchSpring: 160,
+    punchDamping: 18,
+    punchImpulse: 14,
+    /** Existing trauma decay and rotational shake bounds, radians. */
+    shakeDecay: 1.3,
+    shakeAngle: 0.03,
+    shakeRoll: 0.05,
+    /** Cinematic bank limit, degrees; minimum collision arm and surface skin, m. */
+    shotRollLimit: 7,
+    minArm: 0.6,
+    collisionSkin: 0.05,
+    zoomDamping: 6,
     /** Field of view at rest and at top speed, degrees. */
     fov: 68,
     fovAtSpeed: 92,
-    /** FOV and arm start growing at this speed and peak at the second, km/h. */
+    /** FOV starts growing at this speed and peaks at the second, km/h. */
     speedRangeStart: 40,
     speedRangeEnd: 170,
     /** Smoothing rates, 1/s (higher = snappier). */
     fovDamping: 4,
-    followDamping: 16,
     /** radians per pixel. */
     mouseSensitivity: 0.0022,
     invertY: false,
@@ -391,39 +455,15 @@ export const tuning = {
      * below groundClearance: looking further up tilts the view instead (stage 1A feedback: low
      * angles between buildings were disorienting).
      */
-    minPitch: -0.5,
+    minPitch: -0.55,
     maxPitch: 1.25,
-    /** Pitch the camera drifts back to while the mouse rests, radians. */
-    restPitch: 0.32,
     /** The camera stays this high above the street or roof below it (rises instead of dipping), m. */
     groundClearance: 1.1,
     /** Mouse wheel: arm length multipliers for near and far (mid = 1). */
     zoomNear: 0.62,
     zoomFar: 1.5,
-    /** Framing by state, as arm multipliers and extra height (m) / pitch (rad). */
-    groundDistance: 0.85,
-    swingDistance: 1.3,
-    swingHeight: 1.4,
-    swingPitch: 0.1,
-    airDistance: 1.15,
-    /** Wall run: camera slides this far away from the wall, m. */
-    wallRunSide: 1.8,
-    /** Arm multiplier while a fight is on nearby. */
-    combatDistance: 1.25,
-    /** How fast the framing follows the state, 1/s. */
-    framingDamping: 2.5,
-    /** Camera roll while swinging and wall running, degrees. */
-    swingRoll: 7,
-    wallRunRoll: 12,
-    rollDamping: 5,
-    /** Look ahead along the velocity, seconds of travel (capped at 5 m). */
-    lookAhead: 0.3,
     /** Landing on a ledge with E: a short framed shot of the hero against the city (signature moment). */
     perchCinematic: true,
-    /** Slowly turn behind the direction of travel when the mouse rests this long (s). */
-    autoAlign: true,
-    autoAlignDelay: 1.5,
-    autoAlignRate: 1.1,
     /** Camera keeps this distance from walls, m. */
     collisionRadius: 0.3,
     /** Arm speeds when it has to shorten (camera inside a building) and when it grows back, 1/s. */
@@ -435,8 +475,6 @@ export const tuning = {
      */
     xray: 0.85,
     xrayRadius: 1.3,
-    /** Extra arm length while climbing, m. */
-    climbExtraDistance: 2.5,
     shake: true,
     shakeIntensity: 1,
   },

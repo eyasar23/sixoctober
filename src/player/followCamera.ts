@@ -1,449 +1,351 @@
 import { MathUtils, PerspectiveCamera, Vector3 } from 'three';
-import { KMH, type Tuning } from '../config/tuning';
-import type { CollisionWorld } from '../world/collision';
+import { KMH, type CameraPreset, type Tuning } from '../config/tuning';
+import { createHit, type Box, type CollisionWorld } from '../world/collision';
+import { alignmentWeight, combatFramingYaw, criticalDamped, DEG, frameDistance, GroundInputReference, groundAlignmentWeight, wallSafeDirection, wrapAngle } from './cameraMath';
 import type { MoveState } from './playerSim';
 
-const DEG = Math.PI / 180;
-/** Seconds the opening pull-in takes. */
-const INTRO_TIME = 3.2;
-const SPRING_STEP = 1 / 120;
-/** Mouse travel (px) that takes the camera back from a cinematic shot. */
-const SHOT_CANCEL_PIXELS = 24;
-
+export type CameraProfile = keyof Tuning['camera']['profiles'];
 export interface CameraSubject {
-  /** Interpolated feet position. */
   position: Vector3;
   velocity: Vector3;
   state: MoveState;
-  /** Wall normal while wall running or climbing. */
   wallNormal: Vector3;
-  /** Rope anchor while swinging, else null. */
   ropeAnchor: Vector3 | null;
-  /** 0..1: a fight is on nearby (the camera pulls back to show the enemies). */
   combat: number;
+  /** Read-only snapshots; the camera never changes movement or enemy state. */
+  wallBox?: Box | null;
+  combatTarget?: Vector3 | null;
+  titleView?: boolean;
 }
-
-/**
- * A short framed shot (perch view, final blow): where the camera sits relative to the hero.
- * The follow camera blends into it and back out; moving the mouse ends it early.
- */
 export interface CameraShot {
   duration: number;
-  /** Absolute camera yaw and pitch, radians (same convention as FollowCamera.yaw/pitch). */
   yaw: number;
+  /** Radians, positive means looking down (legacy shot convention). */
   pitch: number;
   distance: number;
-  /** Look-at point above the feet, m. */
   height: number;
-  /** Camera offset to its right, m. */
   side: number;
   fov: number;
-  /** Dutch angle, radians (a tilted comic-panel frame). */
   roll: number;
   blendIn: number;
   blendOut: number;
 }
 
-/**
- * Third-person camera on a spring arm. Buildings between the camera and the hero are not avoided
- * by jumping the camera forward: the city shaders turn them see-through (see xray in lighting.ts).
- * The arm only shortens when the camera itself would end up inside a building, and the camera
- * keeps clear of the ground by rising instead of diving under the hero. Framing changes with the
- * state (pulled back over the city while swinging, closer on foot, off to the side on a wall run);
- * the mouse wheel picks near / mid / far; with the mouse at rest it slowly turns behind the
- * direction of travel. Trauma-based shake, FOV punches and short cinematic shots on top.
- */
+/** State-framed follow camera; movement, rope and combat are read-only. */
 export class FollowCamera {
   readonly camera: PerspectiveCamera;
-  /** Angle around the hero, radians. 0 = camera on +Z looking toward −Z. */
   yaw = 0;
-  /** Radians. Positive = camera above the hero looking down. */
-  pitch = 0.42;
-  /** 0 near, 1 mid, 2 far (mouse wheel). */
+  /** Positive radians look down; profile tuning uses signed viewing degrees. */
+  pitch: number;
   zoomLevel = 1;
-  /** Point the camera looks at (above the hero), after smoothing. */
   readonly pivot = new Vector3();
-  private readonly pivotTarget = new Vector3();
-  private readonly dir = new Vector3();
-  private readonly offset = new Vector3();
+  profile: CameraProfile = 'GROUND';
+  autoAlignActive = false;
+  measuredHeightPercent = 0;
+  private readonly inputReference = new GroundInputReference();
+  private movementYaw = 0;
+  private haveMovementReference = false;
+  private lastPreset: CameraPreset;
+  private manualPitchOffset = 0;
+  private profilePitch = 0;
+  private combatYawBase = 0;
+  private readonly target = new Vector3();
+  private readonly candidate = new Vector3();
+  private readonly direction = new Vector3();
+  private readonly normal = new Vector3();
   private readonly lookAt = new Vector3();
+  private readonly previousCamera = new Vector3();
+  private readonly positionVelocity = new Vector3();
+  private readonly pivotVelocity = new Vector3();
+  private readonly hit = createHit();
+  private readonly probe = createHit();
   private arm: number;
-  private fov: number;
+  private recoveringArm = false;
+  private yawVelocity = 0;
+  private pitchVelocity = 0;
+  private frameArm: number;
+  private frameArmVelocity = 0;
+  private pivotHeight: number;
+  private heightVelocity = 0;
+  private lookAhead: number;
+  private leadVelocity = 0;
   private roll = 0;
+  private rollVelocity = 0;
+  private fov: number;
+  private zoom = 1;
   private trauma = 0;
   private shakeTime = 0;
-  private mouseIdle = 99;
+  private mouseIdle = Infinity;
   private dipOffset = 0;
   private dipVelocity = 0;
   private fovPunch = 0;
   private fovPunchVelocity = 0;
   private introTime = 0;
   private initialised = false;
-  private zoom = 1;
-  // Smoothed state framing.
-  private frameDistance = 1;
-  private frameHeight = 0;
-  private framePitch = 0;
-  private frameSide = 0;
-  private groundPitchFloor = -Math.PI / 2;
-  // Cinematic shot.
+  private wallTime = 0;
+  private wasWall = false;
+  private wallSide = 1;
   private shot: CameraShot | null = null;
   private shotTime = 0;
   private shotOut = -1;
-  private shotMouse = 0;
 
-  constructor(
-    private readonly tuning: Tuning,
-    aspect: number,
-  ) {
+  constructor(private readonly tuning: Tuning, aspect: number) {
     const c = tuning.camera;
+    const p = c.profiles.GROUND;
     this.camera = new PerspectiveCamera(c.fov, aspect, 0.1, 3200);
-    this.arm = c.distance;
+    this.pitch = -p.pitch * DEG;
+    this.profilePitch = this.pitch;
+    this.lastPreset = c.preset;
+    this.arm = this.frameArm = frameDistance(c.characterHeight, p.frameHeight, c.fov, c.minDistance, c.maxDistance);
+    this.pivotHeight = p.pivotHeight;
+    this.lookAhead = p.lookAhead;
     this.fov = c.fov;
   }
-
-  /** Mouse movement in pixels. */
+  get distance(): number { return this.camera.position.distanceTo(this.pivot); }
+  get inputYaw(): number { return this.movementYaw; }
+  get shotActive(): boolean { return this.shot !== null; }
+  setMovementKeys(mask: number, grounded: boolean): number {
+    this.movementYaw = this.inputReference.update(this.yaw, mask, this.tuning.camera.inputReference, grounded);
+    this.haveMovementReference = grounded;
+    return this.movementYaw;
+  }
   look(dx: number, dy: number): void {
-    const c = this.tuning.camera;
     if (dx === 0 && dy === 0) return;
+    const c = this.tuning.camera;
     this.mouseIdle = 0;
-    if (this.shot) {
-      this.shotMouse += Math.abs(dx) + Math.abs(dy);
-      if (this.shotMouse > SHOT_CANCEL_PIXELS) this.endShot();
-    }
+    this.shot = null;
     this.yaw -= dx * c.mouseSensitivity;
     this.pitch = MathUtils.clamp(this.pitch + (c.invertY ? -dy : dy) * c.mouseSensitivity, c.minPitch, c.maxPitch);
+    if (c.preset === 'manual') this.manualPitchOffset = this.pitch - this.profilePitch;
+    this.yawVelocity = this.pitchVelocity = 0;
+    this.inputReference.look(this.yaw);
+    this.movementYaw = this.yaw;
   }
-
-  /** Mouse wheel: positive = farther. */
-  zoomStep(direction: number): void {
-    this.zoomLevel = MathUtils.clamp(this.zoomLevel + Math.sign(direction), 0, 2);
-  }
-
-  /** 0..1; a hard landing is about 0.6. */
-  addTrauma(amount: number): void {
-    this.trauma = Math.min(1, this.trauma + amount);
-  }
-
-  /** Short downward camera dip (landings), m/s of initial dip speed. */
-  kickDown(speed: number): void {
-    this.dipVelocity -= speed;
-  }
-
-  /** Quick zoom punch: degrees of field of view, springs back (negative = punch in). */
-  punchFov(degrees: number): void {
-    this.fovPunchVelocity += degrees * 14;
-  }
-
-  playShot(shot: CameraShot): void {
-    this.shot = shot;
-    this.shotTime = 0;
-    this.shotOut = -1;
-    this.shotMouse = 0;
-  }
-
-  get shotActive(): boolean {
-    return this.shot !== null;
-  }
-
-  /** Starts blending back to the follow camera. */
-  endShot(): void {
-    if (this.shot && this.shotOut < 0) this.shotOut = 0;
-  }
-
-  get introProgress(): number {
-    return Math.min(this.introTime / INTRO_TIME, 1);
-  }
-
-  /** Skips the opening pull-in (menu → play, respawn). */
-  skipIntro(): void {
-    this.introTime = INTRO_TIME;
-  }
-
-  /** Puts the camera straight behind a facing yaw (respawn, teleport). */
+  zoomStep(direction: number): void { this.zoomLevel = MathUtils.clamp(this.zoomLevel + Math.sign(direction), 0, 2); }
+  addTrauma(amount: number): void { this.trauma = Math.min(1, this.trauma + amount); }
+  kickDown(speed: number): void { this.dipVelocity -= speed; }
+  punchFov(degrees: number): void { this.fovPunchVelocity += degrees * this.tuning.camera.punchImpulse; }
+  playShot(shot: CameraShot): void { this.shot = shot; this.shotTime = 0; this.shotOut = -1; }
+  endShot(): void { if (this.shot && this.shotOut < 0) this.shotOut = 0; }
+  get introProgress(): number { return Math.min(this.introTime / this.tuning.camera.introTime, 1); }
+  skipIntro(): void { this.introTime = this.tuning.camera.introTime; }
   snapBehind(yaw: number): void {
     this.yaw = yaw;
+    this.inputReference.look(yaw);
+    this.movementYaw = yaw;
+    this.yawVelocity = this.pitchVelocity = 0;
     this.initialised = false;
   }
 
   update(frameDt: number, subject: CameraSubject, world: CollisionWorld): void {
-    const dt = Math.max(frameDt, 0);
+    const dt = Number.isFinite(frameDt) ? Math.max(0, frameDt) : 0;
     const c = this.tuning.camera;
     const v = subject.velocity;
-    const speed = v.length();
-    const t = MathUtils.clamp((speed / KMH - c.speedRangeStart) / (c.speedRangeEnd - c.speedRangeStart), 0, 1);
-    const speedBlend = t * t * (3 - 2 * t);
+    const horizontal = Math.hypot(v.x, v.z);
+    const wall = subject.state === 'wallClimb' || subject.state === 'wallRun';
+    this.normal.set(subject.wallNormal.x, 0, subject.wallNormal.z);
+    const validNormal = this.normal.lengthSq() > 1e-8;
+    if (validNormal) this.normal.normalize();
+    if (wall && !this.wasWall) {
+      this.wallTime = 0;
+      if (validNormal) this.wallSide = this.openWallSide(subject, world);
+    }
+    if (wall) this.wallTime += dt;
+    else this.wallTime = 0;
+    this.wasWall = wall;
+    const wallHold = wall && this.wallTime <= c.wallAttachDelay;
+    const combatTarget = subject.combatTarget;
+    const nearbyEnemy = combatTarget && combatTarget.distanceTo(subject.position) <= c.combatRange;
+    const previousProfile = this.profile;
+    if (!wallHold) {
+      this.profile = wall ? 'WALL' : subject.state === 'perch' ? 'PERCH' :
+        ['airborne', 'swinging', 'zip', 'dive', 'pound', 'mantle'].includes(subject.state) ? 'AIR' :
+          subject.combat > 0 && nearbyEnemy ? 'COMBAT' : 'GROUND';
+    }
+    const profile = c.profiles[this.profile];
+    if (this.profile === 'COMBAT' && previousProfile !== 'COMBAT') this.combatYawBase = this.yaw;
+    const weight = alignmentWeight(this.mouseIdle, c.mouseHold, c.mouseResume);
     this.mouseIdle += dt;
     this.introTime += dt;
-    const intro = 1 - easeOutCubic(this.introProgress);
-    const state = subject.state;
-
-    // Yaw assistance: face the wall while climbing; with the mouse at rest, slowly settle behind
-    // the direction of travel (and back to a comfortable pitch).
-    const horizontal = Math.hypot(v.x, v.z);
-    if (state === 'wallClimb') {
-      if (this.mouseIdle > 0.3) this.yaw = dampAngle(this.yaw, Math.atan2(subject.wallNormal.x, subject.wallNormal.z), 3, dt);
-    } else if (c.autoAlign && this.mouseIdle > c.autoAlignDelay && horizontal > 4 && state !== 'perch') {
-      const rate = c.autoAlignRate * Math.min(1, horizontal / 25);
-      this.yaw = dampAngle(this.yaw, Math.atan2(-v.x, -v.z), rate, dt);
-      this.pitch += (c.restPitch - this.pitch) * (1 - Math.exp(-rate * 0.5 * dt));
+    let targetYaw = this.yaw;
+    let targetPitch = -profile.pitch * DEG;
+    let yawWeight = c.preset === 'reference' && !wallHold ? weight : 0;
+    if (this.profile === 'AIR') {
+      const vertical = MathUtils.clamp(v.y / Math.max(c.airVerticalSpeed, 0.001), -1, 1);
+      const dive = subject.state === 'dive' || subject.state === 'pound';
+      targetPitch = -(dive ? c.airDivePitch : MathUtils.lerp(profile.pitch, vertical > 0 ? c.airRisePitch : c.airDivePitch, Math.abs(vertical))) * DEG;
     }
-
-    // Framing by state: pulled back over the city while swinging, closer on foot, wider in a fight.
-    let frameDistance = 1;
-    let frameHeight = 0;
-    let framePitch = 0;
-    let frameSide = 0;
-    switch (state) {
-      case 'grounded':
-      case 'landing':
-      case 'perch':
-        frameDistance = c.groundDistance;
-        break;
-      case 'swinging':
-        frameDistance = c.swingDistance;
-        frameHeight = c.swingHeight;
-        framePitch = c.swingPitch;
-        break;
-      case 'airborne':
-      case 'dive':
-      case 'zip':
-      case 'pound':
-        frameDistance = c.airDistance;
-        frameHeight = c.swingHeight * 0.5;
-        break;
-      case 'wallRun': {
-        // Slide away from the wall so the run and the street ahead are both in view.
-        const rightX = Math.cos(this.yaw);
-        const rightZ = -Math.sin(this.yaw);
-        frameSide = (subject.wallNormal.x * rightX + subject.wallNormal.z * rightZ) * c.wallRunSide;
-        frameHeight = 0.4;
-        break;
-      }
-      default:
-        break;
+    if (wall && validNormal && !wallHold) {
+      const verticalTravel = subject.state === 'wallClimb' || Math.abs(v.y) > horizontal;
+      if (verticalTravel && v.y > c.wallVerticalSpeed) targetPitch = -c.wallClimbPitch * DEG;
+      else if (verticalTravel && v.y < -c.wallVerticalSpeed) targetPitch = -c.wallDescendPitch * DEG;
+      const lateral = v.x * this.normal.z - v.z * this.normal.x;
+      if (Math.abs(lateral) > c.wallVerticalSpeed) this.wallSide = lateral < 0 ? 1 : -1;
+      // Reduce horizontal obliqueness on descent to keep the full 3D wall-view angle within bounds.
+      const viewAngle = Math.max(c.wallAngle * DEG, Math.abs(targetPitch) + c.wallAngleMargin * DEG);
+      const oblique = Math.acos(MathUtils.clamp(Math.cos(Math.min(viewAngle, c.wallMaxViewAngle * DEG)) / Math.cos(targetPitch), 0, 1));
+      targetYaw = Math.atan2(this.normal.x, this.normal.z) + this.wallSide * oblique;
+    } else if (this.profile === 'PERCH' && validNormal) {
+      targetYaw = Math.atan2(-this.normal.x, -this.normal.z);
+    } else if (horizontal > c.minAlignSpeed) {
+      targetYaw = Math.atan2(-v.x, -v.z);
+      if (this.profile === 'GROUND' || this.profile === 'COMBAT') yawWeight *= groundAlignmentWeight(targetYaw - (this.haveMovementReference ? this.movementYaw : this.yaw), c);
+    } else yawWeight = 0;
+    if (this.profile === 'COMBAT' && combatTarget) {
+      if (horizontal <= c.minAlignSpeed) targetYaw = this.combatYawBase;
+      const combatArm = frameDistance(c.characterHeight, profile.frameHeight, c.fov, c.minDistance, c.maxDistance) * this.zoom;
+      targetYaw = combatFramingYaw(targetYaw, subject.position, combatTarget, combatArm, targetPitch, c.fov, this.camera.aspect, c.combatYawWeight, c.combatFrameMargin);
+      if (horizontal <= c.minAlignSpeed) yawWeight = c.preset === 'reference' ? weight : 0;
     }
-    const combat = MathUtils.clamp(subject.combat, 0, 1);
-    frameDistance = MathUtils.lerp(frameDistance, c.combatDistance, combat);
-    frameHeight += combat * 0.6;
-    framePitch += combat * 0.06;
-    const frameRate = 1 - Math.exp(-c.framingDamping * dt);
-    this.frameDistance += (frameDistance - this.frameDistance) * frameRate;
-    this.frameHeight += (frameHeight - this.frameHeight) * frameRate;
-    this.framePitch += (framePitch - this.framePitch) * frameRate;
-    this.frameSide += (frameSide - this.frameSide) * frameRate;
+    this.autoAlignActive = yawWeight > 0;
+    if (c.preset !== this.lastPreset && c.preset === 'manual') this.manualPitchOffset = this.pitch - targetPitch;
+    this.lastPreset = c.preset;
+    this.profilePitch = targetPitch;
+    if (c.preset === 'manual') targetPitch += this.manualPitchOffset;
+    if (yawWeight > 0) {
+      const yaw = criticalDamped(this.yaw, this.yawVelocity, this.yaw + wrapAngle(targetYaw - this.yaw), profile.yawTime / yawWeight, dt);
+      this.yaw = yaw.value; this.yawVelocity = yaw.velocity;
+    } else this.yawVelocity = 0;
+    if (!wallHold && weight > 0) {
+      const pitch = criticalDamped(this.pitch, this.pitchVelocity, targetPitch, profile.pitchTime / weight, dt);
+      this.pitch = MathUtils.clamp(pitch.value, c.minPitch, c.maxPitch); this.pitchVelocity = pitch.velocity;
+    }
+    const desiredArm = frameDistance(c.characterHeight, profile.frameHeight, c.fov, c.minDistance, c.maxDistance);
+    const armFrame = criticalDamped(this.frameArm, this.frameArmVelocity, desiredArm, profile.transitionTime, dt);
+    this.frameArm = armFrame.value; this.frameArmVelocity = armFrame.velocity;
+    const height = criticalDamped(this.pivotHeight, this.heightVelocity, profile.pivotHeight, profile.transitionTime, dt);
+    this.pivotHeight = height.value; this.heightVelocity = height.velocity;
+    const lead = criticalDamped(this.lookAhead, this.leadVelocity, profile.lookAhead, profile.transitionTime, dt);
+    this.lookAhead = lead.value; this.leadVelocity = lead.velocity;
     const zoomTarget = this.zoomLevel === 0 ? c.zoomNear : this.zoomLevel === 2 ? c.zoomFar : 1;
-    this.zoom += (zoomTarget - this.zoom) * (1 - Math.exp(-6 * dt));
-
-    // Pivot: above the hero, leading the motion a little.
-    const lead = Math.min(c.lookAhead * speed, 5);
-    const leadX = horizontal > 0.5 ? (v.x / horizontal) * lead : 0;
-    const leadZ = horizontal > 0.5 ? (v.z / horizontal) * lead : 0;
-    const leadY = MathUtils.clamp(v.y * c.lookAhead * 0.25, -1.5, 1.5);
-    // Springs (landing dip, FOV punch), integrated in small fixed steps so they stay stable at low frame rates.
-    for (let left = dt; left > 1e-6; left -= SPRING_STEP) {
-      const h = Math.min(left, SPRING_STEP);
-      this.dipVelocity += (-this.dipOffset * 90 - this.dipVelocity * 14) * h;
-      this.dipOffset += this.dipVelocity * h;
-      this.fovPunchVelocity += (-this.fovPunch * 160 - this.fovPunchVelocity * 18) * h;
-      this.fovPunch += this.fovPunchVelocity * h;
+    this.zoom += (zoomTarget - this.zoom) * (1 - Math.exp(-c.zoomDamping * dt));
+    this.updateSprings(dt);
+    const leadLength = Math.min(horizontal * this.lookAhead, c.maxLookAhead);
+    this.target.copy(subject.position); this.target.y += this.pivotHeight + this.dipOffset;
+    if (horizontal > 1e-6 && !wall) this.target.addScaledVector(this.direction.set(v.x / horizontal, 0, v.z / horizontal), leadLength);
+    if (!this.initialised) this.pivot.copy(this.target);
+    else this.springVector(this.pivot, this.pivotVelocity, this.target, c.positionTime, dt);
+    if (wall && validNormal) {
+      const inward = this.direction.subVectors(this.pivot, subject.position).dot(this.normal);
+      if (inward < 0) this.pivot.addScaledVector(this.normal, -inward);
     }
-    if (!Number.isFinite(this.dipOffset + this.dipVelocity + this.fovPunch + this.fovPunchVelocity)) {
-      this.dipOffset = 0;
-      this.dipVelocity = 0;
-      this.fovPunch = 0;
-      this.fovPunchVelocity = 0;
-    }
-    const height = c.height + this.frameHeight;
-    this.pivotTarget.set(subject.position.x + leadX, subject.position.y + height + leadY + this.dipOffset, subject.position.z + leadZ);
-    if (!this.initialised) {
-      this.pivot.copy(this.pivotTarget);
-      this.initialised = true;
-    } else {
-      this.pivot.lerp(this.pivotTarget, 1 - Math.exp(-c.followDamping * dt));
-    }
-
-    // Arm length and field of view grow with speed.
-    let yaw = this.yaw;
-    let pitch = Math.max(this.pitch, c.minPitch) + this.framePitch + intro * 0.12;
-    let desired =
-      (MathUtils.lerp(c.distance, c.distanceAtSpeed, speedBlend) * this.frameDistance * this.zoom +
-        (state === 'wallClimb' ? c.climbExtraDistance : 0)) +
-      intro * 10;
-    let side = this.frameSide;
-    let fovTarget = MathUtils.lerp(c.fov, c.fovAtSpeed, speedBlend) + (state === 'dive' || state === 'pound' ? 6 : 0);
-    let lookHeight = 0;
-
-    // Cinematic shot on top, blended in and out.
+    const speedT = MathUtils.clamp((v.length() / KMH - c.speedRangeStart) / Math.max(c.speedRangeEnd - c.speedRangeStart, 0.001), 0, 1);
+    let desired = MathUtils.clamp(this.frameArm * this.zoom, c.minDistance, c.maxDistance) + (1 - easeOutCubic(this.introProgress)) * c.introExtraDistance;
+    let yaw = this.yaw; let pitch = this.pitch; let side = 0; let lookHeight = 0;
+    let fovTarget = MathUtils.lerp(c.fov, c.fovAtSpeed, smooth(speedT));
     const shotWeight = this.updateShot(dt);
     const shot = this.shot;
-    if (shot && shotWeight > 0) {
-      yaw = this.yaw + wrap(shot.yaw - this.yaw) * shotWeight;
+    const applyShot = shot && !wall && (subject.state !== 'perch' || subject.titleView);
+    if (applyShot) {
+      yaw += wrapAngle(shot.yaw - yaw) * shotWeight;
       pitch = MathUtils.lerp(pitch, shot.pitch, shotWeight);
       desired = MathUtils.lerp(desired, shot.distance, shotWeight);
-      side = MathUtils.lerp(side, shot.side, shotWeight);
+      side = shot.side * shotWeight;
+      lookHeight = (shot.height - this.pivotHeight) * shotWeight;
       fovTarget = MathUtils.lerp(fovTarget, shot.fov, shotWeight);
-      lookHeight = (shot.height - height) * shotWeight;
     }
     this.fov += (fovTarget - this.fov) * (1 - Math.exp(-c.fovDamping * dt));
-
-    // Keep clear of the ground (and roofs) below the camera: rise rather than dip under the hero.
-    const p = this.lookAt.copy(this.pivot);
-    p.y += lookHeight;
-    const cosYaw = Math.cos(yaw);
-    const sinYaw = Math.sin(yaw);
-    const camX = p.x + sinYaw * Math.cos(pitch) * this.arm + cosYaw * side;
-    const camZ = p.z + cosYaw * Math.cos(pitch) * this.arm - sinYaw * side;
-    const floor = world.supportHeight(camX, camZ, 0.2, 0.2, p.y + 0.5) + c.groundClearance;
-    const floorPitch = Math.asin(MathUtils.clamp((floor - p.y) / Math.max(this.arm, 0.5), -1, 1));
-    this.groundPitchFloor += (floorPitch - this.groundPitchFloor) * (1 - Math.exp(-12 * dt));
-    // Looking up past the floor tilts the view up from where the camera is, instead of the camera
-    // sinking toward the street: aiming at roof edges still works, the camera never goes low.
-    let tilt = 0;
-    if (pitch < this.groundPitchFloor) {
-      tilt = Math.min(this.groundPitchFloor - pitch, 1);
-      pitch = this.groundPitchFloor;
+    this.lookAt.copy(this.pivot); this.lookAt.y += lookHeight;
+    this.direction.set(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
+    if (wall && validNormal && !wallHold) wallSafeDirection(this.direction, this.normal, c.wallMinDot);
+    const blocked = world.raycast(this.lookAt.x, this.lookAt.y, this.lookAt.z, this.direction.x, this.direction.y, this.direction.z, desired, c.collisionRadius, this.hit);
+    if (blocked) { desired = Math.max(c.minArm, this.hit.t - c.collisionSkin); this.recoveringArm = true; }
+    const rate = desired < this.arm ? c.collisionPullIn : c.collisionRecover;
+    if (this.recoveringArm) {
+      this.arm += (desired - this.arm) * (1 - Math.exp(-rate * dt));
+      if (!blocked && Math.abs(desired - this.arm) < c.collisionSkin) this.recoveringArm = false;
+    } else this.arm = desired;
+    this.candidate.copy(this.lookAt).addScaledVector(this.direction, this.arm);
+    if (side) {
+      this.candidate.x += Math.cos(yaw) * side; this.candidate.z -= Math.sin(yaw) * side;
+      this.lookAt.x += Math.cos(yaw) * side; this.lookAt.z -= Math.sin(yaw) * side;
     }
-
-    this.dir.set(sinYaw * Math.cos(pitch), Math.sin(pitch), cosYaw * Math.cos(pitch));
-    this.offset.set(cosYaw * side, 0, -sinYaw * side);
-    // The arm only shortens when the camera itself would sit inside a building.
-    const allowed = this.armOutsideBuildings(world, p, desired, c.collisionRadius);
-    const rate = allowed < this.arm ? c.collisionPullIn : c.collisionRecover;
-    this.arm += (allowed - this.arm) * (1 - Math.exp(-rate * dt));
-    if (!Number.isFinite(this.arm)) this.arm = allowed;
-
-    // Roll: bank toward the rope while swinging, away from the wall while wall running.
-    const rightX = Math.cos(yaw);
-    const rightZ = -Math.sin(yaw);
+    this.previousCamera.copy(this.camera.position);
+    if (!this.initialised) this.camera.position.copy(this.candidate);
+    else {
+      this.springVector(this.camera.position, this.positionVelocity, this.candidate, c.positionTime, dt);
+      const travel = this.direction.subVectors(this.camera.position, this.previousCamera);
+      if (travel.length() > c.maxPositionSpeed * dt) {
+        travel.setLength(c.maxPositionSpeed * dt);
+        this.camera.position.copy(this.previousCamera).add(travel);
+        this.positionVelocity.copy(travel).divideScalar(Math.max(dt, 1e-6));
+      }
+    }
+    this.initialised = true;
+    // Final safety cannot be undone by positional smoothing.
+    this.direction.subVectors(this.camera.position, this.lookAt);
+    const distance = this.direction.length();
+    if (distance > 1e-6) {
+      this.direction.divideScalar(distance);
+      // The target is in the outside cone; the interpolated camera may approach it during
+      // attachment. Keep it in the outside half-space without jumping to the cone boundary.
+      const previousOutside = this.normal.x * (this.previousCamera.x - this.lookAt.x) + this.normal.z * (this.previousCamera.z - this.lookAt.z) >= 0;
+      if (wall && validNormal && !wallHold && previousOutside) wallSafeDirection(this.direction, this.normal, 0);
+      let safe = distance;
+      if (world.raycast(this.lookAt.x, this.lookAt.y, this.lookAt.z, this.direction.x, this.direction.y, this.direction.z, distance, c.collisionRadius, this.hit)) safe = Math.max(0, this.hit.t - c.collisionSkin);
+      this.camera.position.copy(this.lookAt).addScaledVector(this.direction, safe);
+    }
+    const floor = world.supportHeight(this.camera.position.x, this.camera.position.z, c.collisionRadius, c.collisionRadius, this.lookAt.y) + c.groundClearance;
+    if (this.camera.position.y < floor) {
+      this.camera.position.y = floor;
+      this.lookAt.y = floor - Math.tan(pitch) * Math.hypot(this.camera.position.x - this.lookAt.x, this.camera.position.z - this.lookAt.z);
+    }
     let rollTarget = 0;
-    if (state === 'swinging' && subject.ropeAnchor) {
-      const rx = subject.ropeAnchor.x - subject.position.x;
-      const rz = subject.ropeAnchor.z - subject.position.z;
-      const lateral = (rx * rightX + rz * rightZ) / Math.max(Math.hypot(rx, rz), 1);
-      rollTarget = -lateral * c.swingRoll * DEG;
-    } else if (state === 'wallRun') {
-      rollTarget = -(subject.wallNormal.x * rightX + subject.wallNormal.z * rightZ) * c.wallRunRoll * DEG;
+    if (subject.state === 'swinging' && subject.ropeAnchor) {
+      const rx = subject.ropeAnchor.x - subject.position.x; const rz = subject.ropeAnchor.z - subject.position.z;
+      rollTarget = -(rx * Math.cos(yaw) - rz * Math.sin(yaw)) / Math.max(Math.hypot(rx, rz), 1) * profile.rollLimit * DEG;
     }
-    rollTarget = rollTarget * (1 - shotWeight) + (shot ? shot.roll * shotWeight : 0);
-    this.roll += (rollTarget - this.roll) * (1 - Math.exp(-c.rollDamping * dt));
-
-    // Trauma shake: strength is trauma², smooth noise on rotation and position.
-    this.trauma = Math.max(0, this.trauma - dt * 1.3);
-    this.shakeTime += dt;
-    const shake = c.shake ? this.trauma * this.trauma * c.shakeIntensity : 0;
-    const n1 = noise(this.shakeTime * 23, 1.7);
-    const n2 = noise(this.shakeTime * 21, 4.3);
-    const n3 = noise(this.shakeTime * 19, 7.1);
-
-    const cam = this.camera;
-    cam.position.set(
-      p.x + this.dir.x * this.arm + this.offset.x + n1 * shake * 0.25,
-      p.y + this.dir.y * this.arm + n2 * shake * 0.25,
-      p.z + this.dir.z * this.arm + this.offset.z,
-    );
-    this.lookAt.set(p.x + this.offset.x, p.y + Math.tan(tilt) * this.arm, p.z + this.offset.z);
-    cam.up.set(0, 1, 0);
-    cam.lookAt(this.lookAt);
-    cam.rotateZ(this.roll + n3 * shake * 0.05);
-    cam.rotateX(n2 * shake * 0.03);
-    cam.rotateY(n1 * shake * 0.03);
+    if (applyShot) rollTarget = MathUtils.lerp(rollTarget, MathUtils.clamp(shot.roll, -c.shotRollLimit * DEG, c.shotRollLimit * DEG), shotWeight);
+    if (this.profile === 'GROUND' || this.profile === 'COMBAT') rollTarget = 0;
+    const roll = criticalDamped(this.roll, this.rollVelocity, rollTarget, profile.pitchTime, dt);
+    this.roll = roll.value; this.rollVelocity = roll.velocity;
+    this.trauma = Math.max(0, this.trauma - dt * c.shakeDecay); this.shakeTime += dt;
+    const shake = c.shake ? this.trauma ** 2 * c.shakeIntensity : 0;
+    const n1 = noise(this.shakeTime * 23, 1.7); const n2 = noise(this.shakeTime * 21, 4.3); const n3 = noise(this.shakeTime * 19, 7.1);
+    this.camera.up.set(0, 1, 0); this.camera.lookAt(this.lookAt);
+    this.camera.rotateZ(this.roll + n3 * shake * c.shakeRoll);
+    this.camera.rotateX(n2 * shake * c.shakeAngle); this.camera.rotateY(n1 * shake * c.shakeAngle);
     const fov = MathUtils.clamp(this.fov + this.fovPunch, 20, 140);
-    if (Math.abs(cam.fov - fov) > 0.01) {
-      cam.fov = fov;
-      cam.updateProjectionMatrix();
+    if (Math.abs(this.camera.fov - fov) > 0.01) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
+    this.camera.updateMatrixWorld(true);
+  }
+  private springVector(value: Vector3, velocity: Vector3, target: Vector3, time: number, dt: number): void {
+    for (const axis of ['x', 'y', 'z'] as const) {
+      const spring = criticalDamped(value[axis], velocity[axis], target[axis], time, dt);
+      value[axis] = spring.value; velocity[axis] = spring.velocity;
     }
   }
-
-  /** Shot blend weight 0..1 for this frame; clears the shot when it is over. */
+  private openWallSide(subject: CameraSubject, world: CollisionWorld): number {
+    const c = this.tuning.camera; const nx = this.normal.x; const nz = this.normal.z; const angle = c.wallAngle * DEG;
+    const probeSide = (side: number): number => {
+      const x = nx * Math.cos(angle) + nz * Math.sin(angle) * side; const z = nz * Math.cos(angle) - nx * Math.sin(angle) * side;
+      const found = world.raycast(subject.position.x, subject.position.y + c.profiles.WALL.pivotHeight, subject.position.z, x, 0, z, c.wallProbeDistance, c.collisionRadius, this.probe);
+      return found ? this.probe.t : c.wallProbeDistance;
+    };
+    return probeSide(1) >= probeSide(-1) ? 1 : -1;
+  }
+  private updateSprings(dt: number): void {
+    const c = this.tuning.camera;
+    for (let left = dt; left > 1e-6; left -= c.springStep) {
+      const h = Math.min(left, c.springStep);
+      this.dipVelocity += (-this.dipOffset * c.dipSpring - this.dipVelocity * c.dipDamping) * h; this.dipOffset += this.dipVelocity * h;
+      this.fovPunchVelocity += (-this.fovPunch * c.punchSpring - this.fovPunchVelocity * c.punchDamping) * h; this.fovPunch += this.fovPunchVelocity * h;
+    }
+  }
   private updateShot(dt: number): number {
     const shot = this.shot;
     if (!shot) return 0;
     this.shotTime += dt;
     if (this.shotOut < 0 && this.shotTime >= shot.duration) this.shotOut = 0;
-    let weight = smooth(Math.min(this.shotTime / Math.max(shot.blendIn, 1e-3), 1));
+    let weight = smooth(Math.min(this.shotTime / Math.max(shot.blendIn, 0.001), 1));
     if (this.shotOut >= 0) {
-      this.shotOut += dt;
-      const out = Math.min(this.shotOut / Math.max(shot.blendOut, 1e-3), 1);
+      this.shotOut += dt; const out = Math.min(this.shotOut / Math.max(shot.blendOut, 0.001), 1);
       weight *= 1 - smooth(out);
-      if (out >= 1) {
-        this.shot = null;
-        return 0;
-      }
+      if (out >= 1) { this.shot = null; return 0; }
     }
     return weight;
   }
-
-  /**
-   * Longest arm up to `desired` whose end (a sphere of `radius`) is outside every building.
-   * Buildings crossed on the way are fine: they turn see-through instead.
-   */
-  private armOutsideBuildings(world: CollisionWorld, p: Vector3, desired: number, radius: number): number {
-    let length = desired;
-    for (let i = 0; i < 4; i++) {
-      const x = p.x + this.dir.x * length + this.offset.x;
-      const y = p.y + this.dir.y * length;
-      const z = p.z + this.dir.z * length + this.offset.z;
-      const box = world.overlaps(x, y, z, radius, radius, radius);
-      if (!box) return length;
-      // Back off to where this box was entered along the arm.
-      const enter = entryDistance(p.x + this.offset.x, p.y, p.z + this.offset.z, this.dir, length, box, radius);
-      length = Math.max(enter - 0.05, 0.6);
-      if (length <= 0.6) return length;
-    }
-    return length;
-  }
 }
-
-/** Distance along `dir` from (ox, oy, oz) where the ray enters the box inflated by r (0 if inside). */
-function entryDistance(
-  ox: number,
-  oy: number,
-  oz: number,
-  dir: Vector3,
-  maxDist: number,
-  box: { minX: number; minY: number; minZ: number; maxX: number; maxY: number; maxZ: number },
-  r: number,
-): number {
-  let enter = 0;
-  let exit = maxDist;
-  const axes: Array<[number, number, number, number]> = [
-    [ox, dir.x, box.minX - r, box.maxX + r],
-    [oy, dir.y, box.minY - r, box.maxY + r],
-    [oz, dir.z, box.minZ - r, box.maxZ + r],
-  ];
-  for (const [o, d, lo, hi] of axes) {
-    if (Math.abs(d) < 1e-9) {
-      if (o < lo || o > hi) return maxDist;
-      continue;
-    }
-    let t0 = (lo - o) / d;
-    let t1 = (hi - o) / d;
-    if (t0 > t1) [t0, t1] = [t1, t0];
-    enter = Math.max(enter, t0);
-    exit = Math.min(exit, t1);
-    if (enter > exit) return maxDist;
-  }
-  return enter;
-}
-
-function dampAngle(current: number, target: number, rate: number, dt: number): number {
-  return current + wrap(target - current) * (1 - Math.exp(-rate * dt));
-}
-
-function wrap(angle: number): number {
-  return Math.atan2(Math.sin(angle), Math.cos(angle));
-}
-
-/** Smooth noise in about −1..1 from a few incommensurate sines. */
-function noise(t: number, seed: number): number {
-  return (Math.sin(t + seed) + Math.sin(t * 1.618 + seed * 2.3) * 0.6 + Math.sin(t * 2.71 + seed * 3.7) * 0.3) / 1.9;
-}
-
-function easeOutCubic(x: number): number {
-  return 1 - (1 - x) ** 3;
-}
-
-function smooth(x: number): number {
-  return x * x * (3 - 2 * x);
-}
+function noise(t: number, seed: number): number { return (Math.sin(t + seed) + Math.sin(t * 1.618 + seed * 2.3) * 0.6 + Math.sin(t * 2.71 + seed * 3.7) * 0.3) / 1.9; }
+function easeOutCubic(x: number): number { return 1 - (1 - x) ** 3; }
+function smooth(x: number): number { return x * x * (3 - 2 * x); }

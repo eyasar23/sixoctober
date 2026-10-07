@@ -1,4 +1,5 @@
 import { type FrameRate, type QualityChoice, type Settings } from '../game/settings';
+import type { CameraPreset } from '../config/tuning';
 import { t, tKey } from '../i18n';
 import './menu.css';
 
@@ -230,8 +231,8 @@ export class Menu {
         s.invertY = v;
         changed();
       }),
-      this.toggle('settings.autoRecenter', () => s.autoRecenter, (v) => {
-        s.autoRecenter = v;
+      this.choice('settings.cameraPreset', ['reference', 'manual'], () => s.cameraPreset, (v) => {
+        s.cameraPreset = v as CameraPreset;
         changed();
       }),
       this.toggle('settings.shake', () => s.shake, (v) => {

@@ -95,14 +95,47 @@ Gece yarısı şehir nefes alıyor; kahraman küçük ama durdurulamaz derecede 
 | Kenara konma | Toz | Sinematik çekim | Sessizlik + uğultu |
 | Suça varış | Anlatı kutusu, çete liderinin balonu | Görüş açısı vuruşu, kısa ağır çekim | `alert` |
 
-## 4. Kamera
+## 4. Kamera kuralları
 
-- Yerden en az `camera.groundClearance` (1,1 m) yukarıda. Daha yukarı bakmak kamerayı alçaltmaz, bakışı yukarı eğer.
-- Kamera ile kahraman arasına giren bina (çatı eşyaları ve suç sahnesindeki araçlar da) zıplatılmaz, delik gibi yarı saydam olur (`GLSL_XRAY`, `camera.xray`). Kol sadece kameranın kendisi binanın içine düşecekse kısalır.
-- Duruma göre kadraj (`followCamera.ts`): salınırken geri ve yukarı (şehri göster), yerde yakın, duvarda koşarken yana kayık, dövüşte geniş.
-- Fare her zaman önceliklidir: fare kıpırdayınca sinematik çekim biter.
-- Sinematik çekimler (`CameraShot`): üçte bir kuralı (kahraman bir yanda, şehir öbür yanda), en fazla 0,12 rad eğik açı, alçak açı sadece kısa anlarda. Süreler 1,2–1,7 sn.
-- Sarsıntı travma tabanlı, kapatılabilir (`camera.shake`).
+Aşama 2 kamera görevinin kaynağı `docs/asamalar/asama-2-kamera.md` ve Emirhan'ın verdiği kamera referansıdır. Referanstan yalnızca kadraj ve takip davranışı alınır; karakter, görsel varlık ve efekt kopyalanmaz. Bu görevde yeni efekt eklenmez.
+
+### Profiller ve kadraj hedefleri
+
+Her profil `frameHeight`, pitch, ileri bakış, 90° yaw hizalama süresi, pitch takip süresi, geçiş süresi ve roll sınırı içerir. Bütün değerler `src/config/tuning.ts`'te bulunur ve F1 → Camera altında profil gruplarından değiştirilebilir.
+
+| Profil | Karakterin ekran boyu | Pitch | Yön ve kompozisyon |
+|---|---|---|---|
+| GROUND | %22–30 | −10…−15° | Kahraman yatayda ortada, göğüs yaklaşık %55'te, ayaklar %65–73'te; ufuk %25–40. Baş hizasının üstünden cadde boyunca bakış. Yatay hız >2 m/sn olduğunda 90° dönüş 1,0–1,3 sn. |
+| COMBAT | %22–25 | −18…−24° | Yerden daha yüksek pivot, ufuk yaklaşık %20. Dövüş durumunda 12 m içinde düşman varsa en yakın saldıran düşmana yumuşak yaw eğilimi; kahraman ortada kalır. |
+| AIR | %4–8 | Yükselirken yaklaşık −8°, normalde −18°, dalışta −40°'a kadar | Salınma, havada seyir ve dalışta geniş şehir/cadde kadrajı. Göğüs %55–60 civarında, yatay hız yönü takip edilir; 90° dönüş 1,2–1,5 sn. Salınım yayına doğru roll en fazla 5°. |
+| WALL | %6–10 | Tırmanırken +15…+30°, inerken −45…−60°, yatay koşuda −10…−20° | Duvar boyunca gidilen yöne çapraz bakış; bakışın −normal ile açısı 35–60°. Kadrajın %25–45'i şehir/cadde olmalı. İnişte karakter alt kısımda, cadde tepeden görünür. |
+| PERCH | Geniş şehir kadrajı; profil hedefi F1'den ayarlanır | Şehri ve caddeyi okunaklı gösteren eğim | E ile kenara konunca yaklaşık 1 sn içinde duvar normalinin dışına, şehre bakan açıya dönülür. Fare hareketi anında devralır. |
+
+- Mesafe sabit metre hedefinden değil, `d = karakter boyu / (2 · frameHeight · tan(fovBase / 2))` ile hesaplanır; alt ve üst sınırı vardır. Hızla genişleyen FOV mesafeyle telafi edilmez: şehir daha geniş görünür ve hız hissi korunur.
+- Karakter silüeti okunaklı, ufuk dengeli, şehir ışıkları kompozisyonun bir parçası olmalı. Yerde roll sıfırdır; diğer durumlarda profil sınırı uygulanır.
+- Profil geçişi normalde yaklaşık 0,5 sn, kritik sönümlü ve `dt` tabanlıdır. Kamera tek karede kesmez ya da sıçramaz; konumun kare başı hareketi sınırlanır.
+
+### Yön, fare ve girdi referansı
+
+- Reference varsayılan ön ayardır; Manual otomatik hizalamayı kapatır, mesafe ve kadraj profilleri çalışmaya devam eder. İkisi de Settings menüsünde ve F1 panelinde bulunur.
+- GROUND'da ileri ve çapraz harekette tam hizalama, yana harekette (60–120°) ×0,35 hizalama uygulanır. Geri harekette (>135°) hizalama yoktur. Hareket başlayınca ek bekleme süresi yoktur.
+- Fare girdisi bütün profillerde anında uygulanır. Son fare hareketinden sonra 0,6 sn otomatik hizalama kapalı kalır; sonraki 0,4 sn içinde kademeli açılır. Fare kıpırdayınca sinematik çekim biter.
+- Yerde WASD, kamera yaw'ının ayrı girdi kopyasını kullanır. Fare hareketinde ve basılı tuş değiştiğinde ya da bırakıldığında kopya güncellenir; aynı tuşlar tutulurken otomatik kamera dönüşü bu kopyayı değiştirmez. Böylece A tutulunca kahraman düz gider. Bu seçenek F1'de bulunur ve varsayılan açıktır.
+
+### Duvar, engeller ve saydamlık
+
+- Duvara ilk yapışmada mevcut kadraj 0,3–0,4 sn korunur, ardından yaklaşık 0,8 sn içinde WALL profiline açılır. Duvar boyunca hareket yoksa ışın testi daha açık cadde/şehir tarafını seçer. Duvardan ayrılınca AIR'a yumuşak geçilir.
+- Kamera duvarın dış tarafında kalır: duvar normali dışına yerleşir; pivottan kameraya doğru birim yön ile duvar normalinin nokta çarpımı en az 0,2 olur. Fare duvarda serbesttir ve bu sınırı korur.
+- Her karede sıra: profil seçimi → fare ve otomatik hedef yön → hedef pivot ve mesafe → pivottan kameraya küre ışınıyla çarpışma → son yumuşatma.
+- Engel varsa mesafe hızlı kısalır, engel kalkınca yavaş açılır. Dar alanda pitch korunur; çarpışma çözümü kamerayı duvarın içine taşımaz. Yerden en az `camera.groundClearance` kadar yüksekte kalır.
+- 1B'nin bina saydamlığı (`GLSL_XRAY`, `camera.xray`) korunur; kahramanın üzerinde durduğu/tırmandığı destek duvarı saydamlaşmaz.
+- Sarsıntı travma tabanlı ve kapatılabilir (`camera.shake`). Mevcut sinematik çekimlerde kahraman ve şehir dengesi korunur; fare her zaman önceliklidir.
+
+### Ölçüm ve kontrol
+
+F1'den açılan hata ayıklama satırı aktif profili, karakterin sınır kutusu ekrana projekte edilerek ölçülen ekran yüksekliği yüzdesini, kamera mesafesini ve otomatik hizalamanın açık olup olmadığını gösterir. “Copy values” bütün kamera ayarlarını kopyalamaya devam eder. Yukarıdaki yüzdeler hedef aralıklardır; oyun görüntüsüyle doğrulanmayan kadrajlar doğrulanmış gibi raporlanmaz.
+
+İlk kadraj kalibrasyonu gerçek figürün pozlu sınır kutusunun matematiksel projeksiyonuyla yapıldı: `frameHeight` GROUND 0,24, COMBAT 0,235, AIR 0,065, WALL 0,075, PERCH 0,065. Pozun uzaması ve kutunun kameraya yakın köşeleri sebebiyle bu ayar, ölçülen ekran yüzdesiyle birebir aynı değildir. Canlı satır bu farkı ve hızla genişleyen FOV'un etkisini gösterir. Manual fare eğimini aynı profilde korur; profil değişince yeni temel eğimin farkını ekler. Dövüş yaw eğilimi saldırganı kadraja alacak kadar artabilir; kahraman pivotun merkezinde kalır.
 
 ## 5. Animasyon
 

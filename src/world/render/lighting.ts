@@ -1,6 +1,7 @@
 import { Color, FogExp2, type Material, Uniform, UniformsLib, UniformsUtils, Vector3, Vector4 } from 'three';
 import { palette } from '../../config/palette';
 import type { Tuning } from '../../config/tuning';
+import type { Box } from '../collision';
 
 /**
  * Light and fog values shared by every custom shader in the city, kept as uniform objects so a
@@ -18,6 +19,9 @@ export class SceneLighting {
     xrayCam: new Uniform(new Vector3()),
     xrayHero: new Uniform(new Vector4(0, -1000, 0, 1)),
     xrayStrength: new Uniform(0),
+    /** Supporting wall stays opaque; w is 1 only while a support box is protected. */
+    xraySupportMin: new Uniform(new Vector4()),
+    xraySupportMax: new Uniform(new Vector3()),
     /** Crime x, z, tension 0..1, radius: neon near it flickers harder. */
     crimeZone: new Uniform(new Vector4(0, 0, 0, 1)),
   };
@@ -40,10 +44,13 @@ export class SceneLighting {
    * Surfaces between the camera and the hero turn see-through (dithered) instead of the camera
    * jumping in front of them. `hero` is the chest point; `strength` 0 = off … 1 = fully open.
    */
-  setXray(camera: Vector3, hero: Vector3, radius: number, strength: number): void {
+  setXray(camera: Vector3, hero: Vector3, radius: number, strength: number, support: Box | null = null): void {
     this.uniforms.xrayCam.value.copy(camera);
     this.uniforms.xrayHero.value.set(hero.x, hero.y, hero.z, radius);
     this.uniforms.xrayStrength.value = strength;
+    const skin = this.tuning.camera.collisionSkin;
+    this.uniforms.xraySupportMin.value.set((support?.minX ?? 0) - skin, (support?.minY ?? 0) - skin, (support?.minZ ?? 0) - skin, support ? 1 : 0);
+    this.uniforms.xraySupportMax.value.set((support?.maxX ?? 0) + skin, (support?.maxY ?? 0) + skin, (support?.maxZ ?? 0) + skin);
   }
 
   /** Adds the see-through tunnel to a built-in three.js material (roof props). */
@@ -52,6 +59,8 @@ export class SceneLighting {
       shader.uniforms.xrayCam = this.uniforms.xrayCam;
       shader.uniforms.xrayHero = this.uniforms.xrayHero;
       shader.uniforms.xrayStrength = this.uniforms.xrayStrength;
+      shader.uniforms.xraySupportMin = this.uniforms.xraySupportMin;
+      shader.uniforms.xraySupportMax = this.uniforms.xraySupportMax;
       shader.vertexShader = shader.vertexShader
         .replace('void main() {', 'varying vec3 vXrayWorld;\nvoid main() {')
         .replace(
@@ -117,6 +126,8 @@ export const GLSL_XRAY = /* glsl */ `
   uniform vec3 xrayCam;
   uniform vec4 xrayHero;
   uniform float xrayStrength;
+  uniform vec4 xraySupportMin;
+  uniform vec3 xraySupportMax;
 
   float bayer4(vec2 p) {
     ivec2 q = ivec2(mod(floor(p), 4.0));
@@ -126,6 +137,7 @@ export const GLSL_XRAY = /* glsl */ `
 
   void xray(vec3 worldPos) {
     if (xrayStrength <= 0.0) return;
+    if (xraySupportMin.w > 0.0 && all(greaterThanEqual(worldPos, xraySupportMin.xyz)) && all(lessThanEqual(worldPos, xraySupportMax))) return;
     vec3 seg = xrayHero.xyz - xrayCam;
     float len2 = max(dot(seg, seg), 1e-4);
     float t = dot(worldPos - xrayCam, seg) / len2;

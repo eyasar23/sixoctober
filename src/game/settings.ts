@@ -1,4 +1,4 @@
-import type { Tuning } from '../config/tuning';
+import type { CameraPreset, Tuning } from '../config/tuning';
 
 export type FrameRate = 'film24' | 'film30' | 'smooth';
 export type QualityChoice = 'auto' | 'low' | 'medium' | 'high';
@@ -11,8 +11,8 @@ export interface Settings {
   /** 0.25..2.5, multiplies the default mouse sensitivity. */
   sensitivity: number;
   invertY: boolean;
-  /** Camera slowly turns behind the direction of travel when the mouse rests. */
-  autoRecenter: boolean;
+  /** Reference follows travel; manual leaves yaw under the mouse's control. */
+  cameraPreset: CameraPreset;
   shake: boolean;
   /** 0..1 */
   volume: number;
@@ -31,7 +31,7 @@ export function defaultSettings(tuning: Tuning): Settings {
     animateOnTwos: tuning.hero.animateOnTwos,
     sensitivity: 1,
     invertY: tuning.camera.invertY,
-    autoRecenter: tuning.camera.autoAlign,
+    cameraPreset: tuning.camera.preset,
     shake: tuning.camera.shake,
     volume: tuning.audio.volume,
     hud: tuning.ui.hud,
@@ -45,9 +45,16 @@ export function loadSettings(tuning: Tuning): Settings {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return settings;
-    const saved = JSON.parse(raw) as Partial<Settings>;
+    const saved = JSON.parse(raw) as Partial<Settings> & { autoRecenter?: boolean };
     for (const key of Object.keys(settings) as Array<keyof Settings>) {
+      if (key === 'cameraPreset') continue;
       if (typeof saved[key] === typeof settings[key]) (settings as unknown as Record<string, unknown>)[key] = saved[key];
+    }
+    if (saved.cameraPreset === 'reference' || saved.cameraPreset === 'manual') {
+      settings.cameraPreset = saved.cameraPreset;
+    } else if (typeof saved.autoRecenter === 'boolean') {
+      // Keep the earlier menu choice when upgrading a stage 1B saved settings object.
+      settings.cameraPreset = saved.autoRecenter ? 'reference' : 'manual';
     }
   } catch {
     // Storage blocked or corrupt: defaults.
@@ -69,7 +76,7 @@ export function applySettings(settings: Settings, tuning: Tuning, baseSensitivit
   tuning.hero.animateOnTwos = settings.animateOnTwos;
   tuning.camera.mouseSensitivity = baseSensitivity * settings.sensitivity;
   tuning.camera.invertY = settings.invertY;
-  tuning.camera.autoAlign = settings.autoRecenter;
+  tuning.camera.preset = settings.cameraPreset;
   tuning.camera.shake = settings.shake;
   tuning.audio.volume = settings.volume;
   tuning.audio.enabled = settings.volume > 0;
