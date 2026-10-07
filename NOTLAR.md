@@ -20,7 +20,9 @@ Sonraki ajan sohbet geçmişini görmez; bağlam bu dosya, `BRIEF.md` ve `PLAN.m
 ## 2026-10-07 — Aşama 1B: modlar, ilk suç ve dövüş, HUD, menü
 
 - **Ajan / ortam:** Claude Code (bulut). Ubuntu 24.04, Node 22, ekran kartı yok.
-- **Branch / PR:** `claude/ecstatic-bardeen-6fncjx` → `main`, Aşama 1B PR'ı (bağlantı aşağıda, PR açılınca eklendi).
+- **Branch / PR:** `claude/ecstatic-bardeen-6fncjx` → `main`, [PR #3](https://github.com/eyasar23/sixoctober/pull/3).
+- **Vercel:** PR'ın derlemesi başarılı (durum: Ready). Önizleme: https://sixoctober-git-claude-ecstatic-bardeen-6fncjx-emirhan-45f6.vercel.app
+  Ajan linki açamıyor (ağ politikası `*.vercel.app`'i engelliyor, 403); oyunun orada açıldığını Emirhan doğrulamalı.
 - **Görev metni:** `docs/asamalar/asama-1b.md`. **Sanat yönetimi belgesi:** `docs/art-direction.md` (yeni). Bundan sonra renk, yazı, efekt, kamera ve animasyonla ilgili her iş bu belgeye uyar; kural değişirse belge de güncellenir.
 - **Yeni bağımlılık:** yok.
 
