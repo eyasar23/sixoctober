@@ -332,7 +332,7 @@ export class Feedback {
     const d = Math.max(Math.hypot(dx, dz), 1e-3);
     const sideX = dz / d;
     const sideZ = -dx / d;
-    cameraRig.playShot({ duration: time * 0.85, yaw: Math.atan2(sideX, sideZ), pitch: 0.07, distance: 5.8, height: 1.1, side: -Math.min(d, 3) * 0.45, fov: 52, roll: 0.12, blendIn: 0.18, blendOut: 0.5 });
+    cameraRig.playShot({ duration: time, yaw: Math.atan2(sideX, sideZ), pitch: 0.07, distance: 5.8, height: 1.1, side: -Math.min(d, 3) * 0.45, fov: 52, roll: 0.12, blendIn: 0.18, blendOut: 0.35 });
   }
 
   private perchShot(): void {
