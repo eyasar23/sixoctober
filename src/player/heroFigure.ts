@@ -8,6 +8,11 @@ import type { ActionKind, LandingKind, MoveState } from './playerSim';
 const JOINTS = ['pelvis', 'spine', 'neck', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR'] as const;
 type JointName = (typeof JOINTS)[number];
 type Pose = Record<JointName, [number, number, number]>;
+/**
+ * In poses a positive X angle swings a joint toward the front: hanging limbs forward, and the
+ * spine and neck (which point up) forward too, which for them is a negative turn about X.
+ */
+const POINTS_UP: ReadonlySet<JointName> = new Set(['spine', 'neck']);
 
 /** Armour pieces in the order they snap on (chest first), each on its own bone so it can scale in. */
 const ARMOR = ['armorChest', 'armorBelt', 'armorShoulderL', 'armorShoulderR', 'armorForearmL', 'armorForearmR', 'armorKneeL', 'armorKneeR'] as const;
@@ -242,7 +247,7 @@ export class HeroFigure {
     this.twosClock = 0;
     for (const name of JOINTS) {
       const c = this.current[name];
-      this.joints[name].rotation.set(c[0], c[1], c[2]);
+      this.joints[name].rotation.set(POINTS_UP.has(name) ? -c[0] : c[0], c[1], c[2]);
     }
     const pelvis = this.joints.pelvis;
     pelvis.position.y = 0.98 + this.pelvisY;
@@ -723,7 +728,8 @@ export class HeroFigure {
     set(t, 'kneeL', -0.3, 0, 0);
     set(t, 'kneeR', -0.9, 0, 0);
     set(t, 'neck', 0.2, 0.4, 0);
-    this.alignPitchTarget = -1.5 * fall;
+    // Flat on the back (a positive pitch tips the body backwards).
+    this.alignPitchTarget = 1.5 * fall;
     this.pelvisYTarget = -0.82 * fall;
   }
 

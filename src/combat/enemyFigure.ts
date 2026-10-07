@@ -7,6 +7,8 @@ import type { Enemy } from './enemy';
 const JOINTS = ['pelvis', 'spine', 'neck', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR'] as const;
 type JointName = (typeof JOINTS)[number];
 type Pose = Record<JointName, [number, number, number]>;
+/** Positive X angles in poses swing toward the front; for the upward spine and neck that is a negative turn. */
+const POINTS_UP: ReadonlySet<JointName> = new Set(['spine', 'neck']);
 
 /**
  * "The Static" gang look (our own design, BRIEF.md §2.8): dark plum tracksuits with hot
@@ -141,7 +143,7 @@ export class EnemyFigure {
     glows.forEach((glow, i) => {
       glow.copy(this.baseGlow[i]!);
       if (e.hitFlash > 0) {
-        const k = e.hitFlash * e.hitFlash * 1.4;
+        const k = e.hitFlash ** 3 * 1.6;
         glow.r += k;
         glow.g += k;
         glow.b += k;
@@ -166,7 +168,7 @@ export class EnemyFigure {
     this.twosClock = 0;
     for (const name of JOINTS) {
       const c = this.current[name];
-      this.joints[name].rotation.set(c[0], c[1], c[2]);
+      this.joints[name].rotation.set(POINTS_UP.has(name) ? -c[0] : c[0], c[1], c[2]);
     }
     const pelvis = this.joints.pelvis;
     pelvis.position.y = 0.98 + this.pelvisY;
@@ -210,7 +212,7 @@ export class EnemyFigure {
       case 'getup':
         if (e.state === 'getup') {
           const up = smooth(p(tu.getupTime));
-          this.bodyPitchTarget = -1.5 * (1 - up);
+          this.bodyPitchTarget = 1.5 * (1 - up);
           this.pelvisYTarget = -0.8 * (1 - up);
           set(t, 'hipL', 1.4 * (1 - up), 0, 0);
           set(t, 'kneeL', -2.0 * (1 - up), 0, 0);
@@ -286,7 +288,8 @@ export class EnemyFigure {
         set(t, 'kneeL', -0.9, 0, 0);
         set(t, 'kneeR', -0.7, 0, 0);
         set(t, 'neck', -0.4, 0, 0);
-        this.bodyPitchTarget = e.state === 'pulled' ? 0.8 : -1.1;
+        // Thrown back: tipped backwards; pulled in: head first.
+        this.bodyPitchTarget = e.state === 'pulled' ? -0.8 : 1.1;
         this.bodyRoll = 0.3 * this.recoilSide;
         break;
       }
@@ -302,7 +305,8 @@ export class EnemyFigure {
         set(t, 'kneeL', -0.2, 0, 0);
         set(t, 'kneeR', -1.1, 0, 0);
         set(t, 'neck', 0.2, e.state === 'ko' ? 0.7 : 0.3, 0);
-        this.bodyPitchTarget = -1.52 * fall;
+        // Flat on the back (a positive pitch tips the body backwards).
+        this.bodyPitchTarget = 1.52 * fall;
         this.pelvisYTarget = -0.84 * fall;
         break;
       }
