@@ -211,6 +211,7 @@ await page.keyboard.press('Space');
 await waitSim(0.2);
 await page.keyboard.down('ShiftLeft');
 let approach = Infinity;
+let approachShot = false;
 let ledgeHops = 0;
 let waypoint = 0;
 let shiftHeld = true;
@@ -271,7 +272,10 @@ for (let i = 0; route.length > 0 && (await simTime()) < approachEnd; i++) {
     await page.keyboard.down('ShiftLeft');
     shiftHeld = true;
   }
-  if (i === 40) await shot('07-approach.jpg');
+  if (!approachShot && s.crime < 150) {
+    approachShot = true;
+    await shot('07-approach.jpg');
+  }
   await waitSim(0.12);
 }
 await page.keyboard.up('ShiftLeft');
@@ -291,6 +295,8 @@ log('approach ended at', approach.toFixed(0), 'm', placed ? '(route stuck: place
 
 // The fight -----------------------------------------------------------------------------------
 await game(() => window.__game.setLockstep(8));
+// Arriving by swinging: let the hero come down first.
+await waitFor(() => ['grounded', 'landing', 'action'].includes(window.__game.sim.state), 6);
 let finalShot = false;
 for (let round = 0; round < 900; round++) {
   if (round % 60 === 0) log('fight round', round, JSON.stringify(await game(() => ({ alive: window.__game.combat.aliveCount, hp: Math.round(window.__game.combat.health), t: window.__game.simTime().toFixed(0) }))));
@@ -312,11 +318,18 @@ for (let round = 0; round < 900; round++) {
       g.cameraRig.pitch = 0.2;
     }
     const warn = g.combat.enemies.some((e) => e.counterable && Math.hypot(e.position.x - h.x, e.position.z - h.z) < 4.2);
-    return { alive: g.combat.aliveCount, d: bestD, warn, standing: best ? best.state !== 'down' && best.state !== 'knockback' && best.state !== 'getup' : false, state: g.sim.state, stopped: g.crime.stopped };
+    const onEnemy = document.querySelector('.hud-crosshair')?.dataset.target === 'enemy';
+    return { alive: g.combat.aliveCount, d: bestD, warn, onEnemy, standing: best ? best.state !== 'down' && best.state !== 'knockback' && best.state !== 'getup' : false, state: g.sim.state, stopped: g.crime.stopped };
   });
   if (st.stopped > 0 || st.alive === 0) break;
-  if (st.warn) await page.keyboard.press('KeyQ');
-  else if (st.d > 9 && st.d < 28 && round % 7 === 0) await page.keyboard.press('KeyE'); // rope pull
+  if (st.state === 'perch') {
+    // Up on a ledge: step off it, back down to the street.
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(300);
+    await page.keyboard.up('KeyW');
+  } else if (st.warn) await page.keyboard.press('KeyQ');
+  // Rope pull only with the crosshair on an enemy (elsewhere E launches onto a ledge).
+  else if (st.onEnemy && st.d > 9 && st.d < 28 && round % 7 === 0) await page.keyboard.press('KeyE');
   else if (st.d > 3.2 && st.standing) {
     await page.keyboard.down('KeyW');
     await page.waitForTimeout(90);
