@@ -12,3 +12,13 @@ export function t(key: MessageKey, params: Record<string, string | number> = {})
 export function tKey(key: string, params: Record<string, string | number> = {}): string {
   return key in en ? t(key as MessageKey, params) : key;
 }
+
+/** Every string whose key starts with `prefix.` (word lists like comic.punch.0, comic.punch.1 …). */
+export function tList(prefix: string): string[] {
+  const out: string[] = [];
+  for (let i = 0; ; i++) {
+    const key = `${prefix}.${i}`;
+    if (!(key in en)) return out;
+    out.push(t(key as MessageKey));
+  }
+}

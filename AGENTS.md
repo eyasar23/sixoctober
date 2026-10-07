@@ -43,7 +43,8 @@ npm run test         # Vitest
 npm run typecheck    # TypeScript
 npm run build        # tip kontrolü + üretim derlemesi (dist/)
 blender -b --factory-startup -P tools/blender/test_figure.py   # 3D test figürü
-node tools/smoke/stage1a.mjs   # oynanış duman testi (önce build + vite preview, playwright-core --no-save)
+node tools/smoke/stage1b.mjs   # oynanış duman testi (önce build + vite preview, playwright-core --no-save)
+node tools/smoke/stage1a.mjs   # 1A hareket rotası (aynı hazırlık)
 ```
 
 Bulutta Blender kurulu değilse kurulum satırları `NOTLAR.md`'de (Aşama 0 kaydı).

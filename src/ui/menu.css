@@ -1,0 +1,330 @@
+/* Menu: title screen, pause, settings, controls. Comic art direction, all CSS and SVG. */
+
+.menu {
+  --ink: #140a1c;
+  --paper: #f4e2b8;
+  --cyan: #3fd6ff;
+  --pink: #ff4fa3;
+  --amber: #ffa21f;
+  --crime: #ff4a2e;
+  --comic-font: italic 900 1em/1 Impact, Haettenschweiler, 'Arial Black', 'Franklin Gothic Heavy', 'DejaVu Sans', sans-serif;
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--paper);
+  font-family: system-ui, sans-serif;
+  user-select: none;
+}
+
+.menu-backdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle, rgb(20 10 28 / 55%) 28%, transparent 30%) 0 0 / 9px 9px,
+    radial-gradient(ellipse at 30% 45%, rgb(20 10 28 / 10%), rgb(20 10 28 / 80%));
+}
+
+.menu[data-screen='title'] .menu-backdrop {
+  background:
+    radial-gradient(circle, rgb(20 10 28 / 40%) 26%, transparent 28%) 0 0 / 9px 9px,
+    linear-gradient(90deg, rgb(20 10 28 / 82%) 0%, rgb(20 10 28 / 35%) 55%, rgb(20 10 28 / 5%) 100%);
+}
+
+.menu-speedlines {
+  position: absolute;
+  inset: 0;
+  opacity: 0.18;
+  background: repeating-linear-gradient(-62deg, transparent 0 46px, var(--pink) 46px 49px, transparent 49px 120px);
+  mask-image: linear-gradient(90deg, #000, transparent 60%);
+}
+
+.menu-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 18px;
+  max-height: 92vh;
+  overflow: auto;
+}
+
+.menu-title-screen {
+  position: absolute;
+  left: 6vw;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.menu-title-art {
+  position: relative;
+  padding: 26px 30px 18px 10px;
+}
+
+.menu-burst {
+  position: absolute;
+  left: -40px;
+  top: -42px;
+  width: 520px;
+  max-width: 90vw;
+  z-index: -1;
+  fill: var(--crime);
+  stroke: var(--ink);
+  stroke-width: 2.4;
+  opacity: 0.88;
+  filter: drop-shadow(8px 8px 0 var(--ink));
+}
+
+.menu-title-project {
+  display: inline-block;
+  padding: 4px 14px 3px;
+  font: var(--comic-font);
+  font-size: 22px;
+  letter-spacing: 0.28em;
+  color: var(--ink);
+  background: var(--cyan);
+  border: 3px solid var(--ink);
+  transform: rotate(-4deg) skewX(-10deg);
+  box-shadow: 5px 5px 0 var(--ink);
+}
+
+.menu-title-name {
+  position: relative;
+  margin-top: 6px;
+  font: var(--comic-font);
+  font-size: min(10.5vw, 112px);
+  letter-spacing: 0.01em;
+  color: var(--paper);
+  -webkit-text-stroke: 5px var(--ink);
+  paint-order: stroke fill;
+  text-shadow:
+    -5px 3px 0 var(--cyan),
+    6px 6px 0 var(--pink),
+    11px 11px 0 var(--ink);
+  transform: skewX(-9deg) rotate(-3deg);
+  animation: title-in 0.7s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+
+@keyframes title-in {
+  from {
+    opacity: 0;
+    transform: translateX(-60px) skewX(-25deg) rotate(-3deg) scale(1.2);
+  }
+}
+
+.menu-caption {
+  display: inline-block;
+  margin-top: 16px;
+  padding: 7px 14px;
+  font: italic 800 15px/1.2 system-ui, sans-serif;
+  letter-spacing: 0.12em;
+  color: var(--ink);
+  background: #ffc23d;
+  border: 3px solid var(--ink);
+  box-shadow: 5px 5px 0 var(--ink);
+  transform: skewX(-8deg);
+}
+
+.menu-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-left: 18px;
+}
+
+.menu-button {
+  min-width: 250px;
+  padding: 10px 26px 8px;
+  font: var(--comic-font);
+  font-size: 30px;
+  letter-spacing: 0.06em;
+  text-align: left;
+  color: var(--paper);
+  background: var(--ink);
+  border: 3px solid var(--paper);
+  box-shadow: 6px 6px 0 rgb(20 10 28 / 85%);
+  transform: skewX(-12deg);
+  cursor: pointer;
+  transition:
+    transform 0.08s,
+    background 0.08s,
+    color 0.08s,
+    box-shadow 0.08s;
+}
+
+.menu-button:hover,
+.menu-button:focus-visible {
+  outline: none;
+  color: var(--ink);
+  background: var(--cyan);
+  box-shadow: 8px 8px 0 var(--pink);
+  transform: skewX(-12deg) translateX(10px);
+}
+
+.menu-button.primary {
+  font-size: 40px;
+  color: var(--ink);
+  background: var(--paper);
+  box-shadow: 7px 7px 0 var(--crime);
+}
+
+.menu-button.primary:hover,
+.menu-button.primary:focus-visible {
+  background: var(--cyan);
+  box-shadow: 9px 9px 0 var(--pink);
+}
+
+.menu-footer {
+  margin-left: 22px;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  opacity: 0.6;
+}
+
+.menu-heading {
+  font: var(--comic-font);
+  font-size: 64px;
+  color: var(--paper);
+  -webkit-text-stroke: 3px var(--ink);
+  paint-order: stroke fill;
+  text-shadow:
+    5px 5px 0 var(--pink),
+    9px 9px 0 var(--ink);
+  transform: skewX(-9deg) rotate(-2deg);
+}
+
+/* Settings ------------------------------------------------------------------------------- */
+
+.settings-body {
+  display: grid;
+  gap: 10px;
+  padding: 18px 22px;
+  background: rgb(20 10 28 / 88%);
+  border: 3px solid var(--paper);
+  box-shadow: 8px 8px 0 var(--cyan);
+}
+
+.settings-row {
+  display: grid;
+  grid-template-columns: 230px auto;
+  align-items: center;
+  gap: 18px;
+}
+
+.settings-label {
+  font: italic 800 15px/1.2 system-ui, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.settings-choice {
+  display: flex;
+  gap: 6px;
+}
+
+.settings-choice button,
+.settings-toggle {
+  padding: 6px 12px;
+  font: italic 800 14px/1 system-ui, sans-serif;
+  letter-spacing: 0.06em;
+  color: var(--paper);
+  background: transparent;
+  border: 2px solid rgb(244 226 184 / 50%);
+  transform: skewX(-10deg);
+  cursor: pointer;
+}
+
+.settings-choice button.on,
+.settings-toggle.on {
+  color: var(--ink);
+  background: var(--cyan);
+  border-color: var(--ink);
+}
+
+.settings-choice button:focus-visible,
+.settings-toggle:focus-visible,
+.settings-slider:focus-visible {
+  outline: 2px solid var(--pink);
+  outline-offset: 2px;
+}
+
+.settings-toggle {
+  min-width: 70px;
+}
+
+.settings-slider {
+  width: 220px;
+  accent-color: var(--cyan);
+}
+
+/* Controls card (menu and H in game) --------------------------------------------------- */
+
+.controls-card {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(250px, 1fr));
+  gap: 16px 28px;
+  padding: 18px 24px;
+  background: rgb(20 10 28 / 90%);
+  border: 3px solid var(--paper, #f4e2b8);
+  box-shadow: 8px 8px 0 var(--pink, #ff4fa3);
+  color: var(--paper, #f4e2b8);
+  font-family: system-ui, sans-serif;
+}
+
+.controls-card h3 {
+  margin: 0 0 8px;
+  font: italic 900 20px/1 Impact, Haettenschweiler, 'Arial Black', sans-serif;
+  letter-spacing: 0.12em;
+  color: #3fd6ff;
+}
+
+.controls-row {
+  display: grid;
+  grid-template-columns: 116px auto;
+  gap: 10px;
+  align-items: baseline;
+  margin: 4px 0;
+  font-size: 14px;
+}
+
+.controls-row kbd {
+  justify-self: start;
+  padding: 2px 8px;
+  font: 700 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #140a1c;
+  background: #f4e2b8;
+  border-radius: 4px;
+  box-shadow: 0 2px 0 #8a7a5c;
+}
+
+.control-card-overlay {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 4;
+  transform: translate(-50%, -50%) rotate(-1deg);
+  pointer-events: none;
+}
+
+@media (max-width: 760px) {
+  .controls-card {
+    grid-template-columns: 1fr;
+  }
+  .menu-title-screen {
+    left: 16px;
+    right: 16px;
+  }
+  .menu-button {
+    min-width: 0;
+    font-size: 24px;
+  }
+  .menu-button.primary {
+    font-size: 30px;
+  }
+  .settings-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+}

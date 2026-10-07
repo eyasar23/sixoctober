@@ -1,5 +1,7 @@
 /** Keys whose presses are remembered until a game system consumes them. */
-const TRACKED = new Set(['Space', 'KeyC', 'KeyR', 'KeyT', 'Tab', 'Digit1', 'Digit2']);
+const TRACKED = new Set(['Space', 'KeyC', 'KeyE', 'KeyQ', 'KeyH', 'KeyR', 'KeyT', 'Tab', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Enter', 'Backspace']);
+/** Accumulated wheel delta that counts as one notch (mouse wheels send ~100, touchpads less). */
+const WHEEL_NOTCH = 40;
 /** Keys whose browser default (scrolling, focus change) is blocked. */
 const BLOCKED = new Set(['Space', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
 
@@ -12,7 +14,10 @@ export class Input {
   private readonly pressed = new Set<string>();
   private mouseX = 0;
   private mouseY = 0;
+  private wheel = 0;
   private locked = false;
+  /** Test hook: accept mouse buttons and the wheel without pointer lock (headless browsers). */
+  allowUnlocked = false;
   private readonly lockListeners: Array<(locked: boolean) => void> = [];
 
   /** Clicking `lockTarget` captures the mouse; Esc releases it (browser default). */
@@ -41,6 +46,38 @@ export class Input {
       this.mouseX += event.movementX;
       this.mouseY += event.movementY;
     });
+    window.addEventListener(
+      'wheel',
+      (event) => {
+        if (this.locked || this.allowUnlocked) this.wheel += event.deltaY;
+      },
+      { passive: true },
+    );
+    // Mouse buttons: left = Mouse0 (punch), right = Mouse2 (kick).
+    document.addEventListener('mousedown', (event) => {
+      if (!this.locked && !this.allowUnlocked) return;
+      const code = `Mouse${event.button}`;
+      this.pressed.add(code);
+      this.held.add(code);
+    });
+    document.addEventListener('mouseup', (event) => this.held.delete(`Mouse${event.button}`));
+    window.addEventListener('contextmenu', (event) => {
+      if (this.locked || event.target === lockTarget) event.preventDefault();
+    });
+  }
+
+  /** Forgets every buffered press (menus opening, respawn). */
+  clearPresses(): void {
+    this.pressed.clear();
+    this.wheel = 0;
+  }
+
+  /** One mouse-wheel notch since the last call: +1 away (scroll down), −1 toward, 0 none. */
+  takeWheelStep(): number {
+    if (Math.abs(this.wheel) < WHEEL_NOTCH) return 0;
+    const step = Math.sign(this.wheel);
+    this.wheel = 0;
+    return step;
   }
 
   get pointerLocked(): boolean {

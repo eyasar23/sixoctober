@@ -183,6 +183,8 @@ export const tuning = {
     minAirTime: 0.05,
     /** Space while swinging without a zip target: let go with this upward kick, m/s. */
     ropeJumpUp: 8,
+    /** A released rope (Shift up, landing, wall) whips and reels back into the hand in this time, s. */
+    retractTime: 0.25,
 
     // Zip
     zipSpeed: 150,
@@ -196,8 +198,174 @@ export const tuning = {
     /** Ring on the zip target under the crosshair (fills up during the cooldown). */
     showZipTarget: true,
 
+    // Look and launch (E): the rope pulls the hero onto the ledge under the crosshair.
+    /** Farthest ledge, m. */
+    launchRange: 80,
+    /** km/h. */
+    launchSpeed: 140,
+    launchCooldown: 0.35,
+    /** Hop from the end of the pull onto the ledge, s. */
+    perchHopTime: 0.2,
+    /** Space on a ledge: leap forward (m/s, along the camera) and up (m). */
+    perchLeapForward: 13,
+    perchLeapHeight: 2.6,
+    /** Glow on the ledge under the crosshair. */
+    showLedgeHighlight: true,
+
     /** Show where the next rope will attach while in the air. */
     showAnchorPreview: true,
+  },
+
+  /** Titan mode: slow but strong (BRIEF.md §3.2). */
+  titan: {
+    /** These replace the Movement values while Titan is on (speeds km/h, as there). */
+    movement: {
+      runSpeed: 32,
+      sprintSpeed: 48,
+      runAccelTime: 0.55,
+      sprintAccelTime: 0.9,
+      brakeTime: 0.32,
+      turnGrip: 6,
+      jumpHeight: 2.2,
+      gravity: 30,
+      airControl: 7,
+      climbSpeed: 9,
+      climbSprintSpeed: 12,
+      climbSideSpeed: 6,
+      softLandSpeed: 22,
+      heroLandSpeed: 18,
+      heroMaxRunSpeed: 400,
+      rollMinSpeed: 400,
+      heroLandKeep: 0.05,
+    },
+    /** Charged super jump: seconds to full charge and crouched walk speed while charging (km/h). */
+    chargeTime: 0.9,
+    chargeWalkSpeed: 8,
+    /** Jump height for a tap and for a full charge, m. */
+    superJumpMin: 3,
+    superJumpMax: 32,
+    /** Forward push at full charge, m/s. */
+    superJumpForward: 10,
+    /** Ground pound (C in the air): hang before the slam (s) and slam speed (m/s). */
+    poundHang: 0.16,
+    poundSpeed: 62,
+    /** No pound closer than this to the ground, m. */
+    poundMinHeight: 2.5,
+    /** Shockwave: radius (m), push (m/s) and damage. */
+    shockRadius: 15,
+    shockForce: 24,
+    shockDamage: 45,
+    /** A heavy landing also sends a smaller shockwave above this impact, m/s. */
+    landShockImpact: 22,
+  },
+
+  /** Interface. */
+  ui: {
+    /** Show the HUD (the comic words and banners stay). */
+    hud: true,
+  },
+
+  /** Fights (stage 1B, combat v1). Times in seconds, damage in health points. */
+  combat: {
+    // Player strikes: left click punch, right click kick, three in a row make a combo.
+    punchTime: 0.3,
+    kickTime: 0.38,
+    /** The third strike (finisher) takes this much longer. */
+    finisherExtra: 0.1,
+    /** Share of a strike's time at which it connects (after the wind-up). */
+    hitAt: 0.42,
+    /** A buffered press starts the next strike at this share of the current one. */
+    chainAt: 0.6,
+    /** The combo goes on if the next press comes within this after a strike ends. */
+    comboWindow: 0.35,
+    punchDamage: 10,
+    kickDamage: 14,
+    finisherDamage: 24,
+    /** Reach of a strike and the distance the hero lunges to reach a target, m. */
+    reach: 2.1,
+    lungeRange: 7,
+    lungeSpeed: 13,
+    /** Push on a normal hit and on the finisher (m/s), finisher lift (m/s). */
+    knockback: 2.5,
+    finisherKnockback: 10,
+    finisherLift: 6,
+    /** Titan: strikes are slower, hit harder and also hit everyone this close to the target (m). */
+    heavyTimeScale: 1.35,
+    heavyDamageScale: 1.7,
+    heavyKnockbackScale: 1.6,
+    heavyArea: 2.6,
+    /** Freeze frames on a hit and on a finisher, s. */
+    hitStop: 0.055,
+    finisherHitStop: 0.1,
+    // Counter (Q while an enemy shows "!!")
+    counterRange: 4.5,
+    counterDamage: 38,
+    counterTime: 0.42,
+    /** Q with nothing to counter: locked out this long (no spamming). */
+    counterMissLock: 0.45,
+    // Kanca rope pull (E with an enemy under the crosshair)
+    pullRange: 32,
+    /** Largest angle between the crosshair and the enemy, degrees. */
+    pullAngle: 9,
+    pullSpeed: 26,
+    pullStun: 0.9,
+    // The hero's health
+    playerHealth: 100,
+    /** Health comes back after this long without a hit, at this rate per second. */
+    regenDelay: 4,
+    regenRate: 12,
+    /** Knocked out: back on the feet nearby after this long. */
+    respawnDelay: 2.4,
+    // Enemies
+    enemyHealth: 60,
+    bruteHealth: 120,
+    /** m/s */
+    enemyRunSpeed: 5.4,
+    enemyStrafeSpeed: 2.1,
+    /** Enemies notice the hero this close (m) and fight at this distance. */
+    aggroRange: 30,
+    engageRange: 3.1,
+    /** "!!" wind-up before an attack, s: the counter window. */
+    warnTime: 0.65,
+    bruteWarnTime: 0.85,
+    attackTime: 0.3,
+    /** The swing steps in at this speed (m/s), so it reaches from the fighting distance. */
+    attackLunge: 9,
+    /** A swing connects within this distance, m… */
+    attackReach: 2.2,
+    /** …and this height difference, m (a hero swinging by overhead is out of reach). */
+    attackHeight: 1.8,
+    recoverTime: 0.55,
+    enemyDamage: 12,
+    bruteDamage: 18,
+    attackCooldownMin: 1.1,
+    attackCooldownMax: 2.3,
+    /** Enemies allowed to wind up or attack at the same time (readable fights). */
+    maxAttackers: 1,
+    hitstunTime: 0.38,
+    downTime: 1.3,
+    getupTime: 0.6,
+  },
+
+  /** The crime loop. */
+  crime: {
+    /** New crimes start this far from the hero, m. */
+    minDistance: 250,
+    maxDistance: 450,
+    /** Enemies wake up when the hero comes this close, m. */
+    engageDistance: 45,
+    /** Next crime this long after one is stopped, s. */
+    nextCrimeDelay: 5,
+    /** Light pillar over the crime. */
+    pillar: true,
+    /** Warm red-orange tint, faster neon flicker and the alarm growing as the crime gets closer. */
+    tension: true,
+    /** Arriving at the crime: a short slow-motion beat, a narration caption and a quick zoom. */
+    arrivalBeat: true,
+    /** Last enemy down: slow motion and a comic-panel frame (signature moment). */
+    finalBlowCinematic: true,
+    finalBlowSlowMo: 0.15,
+    finalBlowTime: 1.2,
   },
 
   camera: {
@@ -218,23 +386,55 @@ export const tuning = {
     /** radians per pixel. */
     mouseSensitivity: 0.0022,
     invertY: false,
-    /** Pitch limits, radians. Positive = camera above looking down. */
-    minPitch: -0.55,
+    /**
+     * Pitch limits, radians. Positive = camera above looking down. The camera itself never goes
+     * below groundClearance: looking further up tilts the view instead (stage 1A feedback: low
+     * angles between buildings were disorienting).
+     */
+    minPitch: -0.5,
     maxPitch: 1.25,
+    /** Pitch the camera drifts back to while the mouse rests, radians. */
+    restPitch: 0.32,
+    /** The camera stays this high above the street or roof below it (rises instead of dipping), m. */
+    groundClearance: 1.1,
+    /** Mouse wheel: arm length multipliers for near and far (mid = 1). */
+    zoomNear: 0.62,
+    zoomFar: 1.5,
+    /** Framing by state, as arm multipliers and extra height (m) / pitch (rad). */
+    groundDistance: 0.85,
+    swingDistance: 1.3,
+    swingHeight: 1.4,
+    swingPitch: 0.1,
+    airDistance: 1.15,
+    /** Wall run: camera slides this far away from the wall, m. */
+    wallRunSide: 1.8,
+    /** Arm multiplier while a fight is on nearby. */
+    combatDistance: 1.25,
+    /** How fast the framing follows the state, 1/s. */
+    framingDamping: 2.5,
     /** Camera roll while swinging and wall running, degrees. */
     swingRoll: 7,
     wallRunRoll: 12,
     rollDamping: 5,
     /** Look ahead along the velocity, seconds of travel (capped at 5 m). */
     lookAhead: 0.3,
-    /** Turn the camera toward the direction of travel when the mouse is idle. */
+    /** Landing on a ledge with E: a short framed shot of the hero against the city (signature moment). */
+    perchCinematic: true,
+    /** Slowly turn behind the direction of travel when the mouse rests this long (s). */
     autoAlign: true,
-    autoAlignDelay: 0.8,
-    autoAlignRate: 1.4,
+    autoAlignDelay: 1.5,
+    autoAlignRate: 1.1,
     /** Camera keeps this distance from walls, m. */
     collisionRadius: 0.3,
-    /** How fast the arm grows back after an obstruction, 1/s. */
+    /** Arm speeds when it has to shorten (camera inside a building) and when it grows back, 1/s. */
+    collisionPullIn: 14,
     collisionRecover: 3,
+    /**
+     * Buildings between the camera and the hero turn see-through (dithered) instead of the camera
+     * jumping: 0 = off … 1 = fully open. Radius of the see-through tunnel at the hero, m.
+     */
+    xray: 0.85,
+    xrayRadius: 1.3,
     /** Extra arm length while climbing, m. */
     climbExtraDistance: 2.5,
     shake: true,
@@ -271,6 +471,13 @@ export const tuning = {
     landingDust: true,
     /** Freeze frames on a superhero landing, s (creative; 0 = off). */
     hitStop: 0.07,
+    /** Warm red-orange tint near a crime, at full tension. */
+    crimeTint: 0.65,
+    /** Mode switch show (signature moment): comic panel, power burst and a beat of slow motion. */
+    modeSwitchShow: true,
+    /** Time scale and real seconds of the mode switch slow motion. */
+    modeSwitchSlowMo: 0.3,
+    modeSwitchTime: 0.3,
     /** Comic "THUD!" lettering on superhero landings (creative). */
     comicImpact: true,
   },
@@ -348,6 +555,9 @@ export const tuning = {
 
 export type Tuning = typeof tuning;
 export type MovementTuning = Tuning['movement'];
+export type TitanTuning = Tuning['titan'];
+export type CombatTuning = Tuning['combat'];
+export type CrimeTuning = Tuning['crime'];
 export type RopeTuning = Tuning['rope'];
 export type CameraTuning = Tuning['camera'];
 export type CityTuning = Tuning['city'];

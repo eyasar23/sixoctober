@@ -1,6 +1,6 @@
 import { Vector3 } from 'three';
 import type { RopeTuning } from '../config/tuning';
-import { ANCHORABLE, type Box, type CollisionWorld, createHit } from '../world/collision';
+import { ANCHORABLE, type Box, type CollisionWorld, createHit, PERCHABLE } from '../world/collision';
 
 export interface AnchorResult {
   readonly point: Vector3;
@@ -247,16 +247,16 @@ export function findZipTarget(
   bodyRadius: number,
   out: ZipTarget,
 ): boolean {
-  const camToBody = aimOrigin.distanceTo(feet);
-  const maxDistance = rope.zipRange + camToBody;
-  if (!world.raycast(aimOrigin.x, aimOrigin.y, aimOrigin.z, aimDir.x, aimDir.y, aimDir.z, maxDistance, 0, hit, ANCHORABLE)) {
+  const start = aimStart(aimOrigin, aimDir, feet, rope.bobHeight, startPoint);
+  const maxDistance = rope.zipRange + 2;
+  if (!world.raycast(start.x, start.y, start.z, aimDir.x, aimDir.y, aimDir.z, maxDistance, 0, hit, ANCHORABLE)) {
     return false;
   }
   const box = hit.box;
   if (!box) return false;
-  const hx = aimOrigin.x + aimDir.x * hit.t;
-  const hy = aimOrigin.y + aimDir.y * hit.t;
-  const hz = aimOrigin.z + aimDir.z * hit.t;
+  const hx = start.x + aimDir.x * hit.t;
+  const hy = start.y + aimDir.y * hit.t;
+  const hz = start.z + aimDir.z * hit.t;
   out.attach.set(hx, hy, hz);
   out.normal.set(hit.nx, hit.ny, hit.nz);
   out.box = box;
@@ -286,6 +286,132 @@ export function findZipTarget(
     world.raycast(feet.x, feet.y + rope.bobHeight, feet.z, ox / distance, oy / distance, oz / distance, distance, bodyRadius * 0.8, hit) &&
     hit.t < distance - 0.3
   ) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Where an aim ray from the camera should start: level with the hero along the ray, so
+ * buildings between the camera and the hero (drawn see-through) are not picked as targets.
+ */
+function aimStart(aimOrigin: Vector3, aimDir: Vector3, feet: Vector3, chestHeight: number, out: Vector3): Vector3 {
+  const along = (feet.x - aimOrigin.x) * aimDir.x + (feet.y + chestHeight - aimOrigin.y) * aimDir.y + (feet.z - aimOrigin.z) * aimDir.z;
+  return out.copy(aimOrigin).addScaledVector(aimDir, Math.max(0, along - 1));
+}
+
+const startPoint = new Vector3();
+
+export interface LedgeTarget {
+  /** Point on the edge where the rope hooks. */
+  readonly point: Vector3;
+  /** Where the feet go when perched (on the parapet or the edge of the top). */
+  readonly perch: Vector3;
+  /** End of the pull: just outside the facade and above the edge; a hop finishes onto the perch. */
+  readonly approach: Vector3;
+  /** Outward horizontal normal of the edge (the perched hero faces this way). */
+  readonly normal: Vector3;
+  /** Ends of the glowing piece of edge shown under the crosshair. */
+  readonly edgeA: Vector3;
+  readonly edgeB: Vector3;
+  box: Box | null;
+}
+
+export function createLedgeTarget(): LedgeTarget {
+  return {
+    point: new Vector3(),
+    perch: new Vector3(),
+    approach: new Vector3(),
+    normal: new Vector3(),
+    edgeA: new Vector3(),
+    edgeB: new Vector3(),
+    box: null,
+  };
+}
+
+/** Half length of the highlighted piece of edge, m. */
+const EDGE_GLOW_HALF = 4;
+
+/**
+ * "Look and launch": the roof edge or ledge (parapet, setback, water tank) under the screen
+ * centre. Aiming at a facade picks the top edge above the aim point; aiming at a roof picks its
+ * nearest edge facing the hero. Fails when nothing perchable is hit, it is out of range, the
+ * perch spot is blocked or the straight pull from the body is not clear.
+ */
+export function findLedge(
+  world: CollisionWorld,
+  aimOrigin: Vector3,
+  aimDir: Vector3,
+  feet: Vector3,
+  rope: RopeTuning,
+  halfWidth: number,
+  halfHeight: number,
+  out: LedgeTarget,
+): boolean {
+  const start = aimStart(aimOrigin, aimDir, feet, rope.bobHeight, startPoint);
+  if (!world.raycast(start.x, start.y, start.z, aimDir.x, aimDir.y, aimDir.z, rope.launchRange + 8, 0, hit)) return false;
+  const box = hit.box;
+  if (!box || (box.flags & PERCHABLE) === 0 || hit.ny < -0.5) return false;
+  const hx = start.x + aimDir.x * hit.t;
+  const hz = start.z + aimDir.z * hit.t;
+
+  // The edge: its outward normal (nx, nz) and the edge line on the box top.
+  let nx = hit.nx;
+  let nz = hit.nz;
+  if (hit.ny > 0.5) {
+    // A roof (or ledge top): its nearest edge, preferring edges that face the hero.
+    let best = Infinity;
+    for (const [ex, ez] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ] as const) {
+      const plane = ex > 0 ? box.maxX : ex < 0 ? box.minX : ez > 0 ? box.maxZ : box.minZ;
+      const distance = Math.abs((ex !== 0 ? hx : hz) - plane);
+      const facesHero = (ex !== 0 ? (feet.x - plane) * ex : (feet.z - plane) * ez) > 0;
+      const score = distance + (facesHero ? 0 : 1000);
+      if (score < best) {
+        best = score;
+        nx = ex;
+        nz = ez;
+      }
+    }
+  }
+  const alongX = nz !== 0; // the edge runs along X when the normal points along Z
+  const edgeFixed = nx > 0 ? box.maxX : nx < 0 ? box.minX : nz > 0 ? box.maxZ : box.minZ;
+  const edgeMin = alongX ? box.minX : box.minZ;
+  const edgeMax = alongX ? box.maxX : box.maxZ;
+  const margin = Math.min(halfWidth + 0.25, (edgeMax - edgeMin) / 2);
+  const along = clamp(alongX ? hx : hz, edgeMin + margin, edgeMax - margin);
+  const ex = alongX ? along : edgeFixed;
+  const ez = alongX ? edgeFixed : along;
+
+  // Perch just inside the edge, on whatever is highest there (a parapet sits on most roofs).
+  const px = ex - nx * 0.15;
+  const pz = ez - nz * 0.15;
+  const top = world.supportHeight(px, pz, 0.05, 0.05, box.maxY + 1);
+  if (top < box.maxY - 0.01) return false;
+  out.perch.set(px, top, pz);
+  if (world.overlaps(px, top + halfHeight + 0.05, pz, halfWidth * 0.8, halfHeight, halfWidth * 0.8)) return false;
+  out.point.set(ex, top, ez);
+  out.normal.set(nx, 0, nz);
+  out.approach.set(ex + nx * (halfWidth + 0.5), top + 0.9, ez + nz * (halfWidth + 0.5));
+  const a0 = Math.max(edgeMin, along - EDGE_GLOW_HALF);
+  const a1 = Math.min(edgeMax, along + EDGE_GLOW_HALF);
+  out.edgeA.set(alongX ? a0 : edgeFixed, top + 0.03, alongX ? edgeFixed : a0);
+  out.edgeB.set(alongX ? a1 : edgeFixed, top + 0.03, alongX ? edgeFixed : a1);
+  out.box = box;
+
+  const distance = out.perch.distanceTo(feet);
+  if (distance < 2.5 || distance > rope.launchRange) return false;
+  // The straight pull from the chest to the approach point must be clear.
+  const cy = feet.y + rope.bobHeight;
+  const dx = out.approach.x - feet.x;
+  const dy = out.approach.y + rope.bobHeight - cy;
+  const dz = out.approach.z - feet.z;
+  const length = Math.hypot(dx, dy, dz);
+  if (length > 1e-3 && world.raycast(feet.x, cy, feet.z, dx / length, dy / length, dz / length, length, halfWidth * 0.7, hit) && hit.t < length - 0.6) {
     return false;
   }
   return true;

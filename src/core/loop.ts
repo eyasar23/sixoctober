@@ -17,6 +17,8 @@ export class GameLoop {
   timeScale = 1;
   /** Test hook: when > 0, every frame advances exactly this many steps, ignoring real time. */
   lockstepSteps = 0;
+  /** Frame cap (Film 24 / 30), 0 = every screen refresh. */
+  maxFps = 0;
   private accumulator = 0;
   private last = 0;
 
@@ -32,7 +34,12 @@ export class GameLoop {
   }
 
   private readonly frame = (now: number): void => {
-    const frameDt = Math.min((now - this.last) / 1000, 0.25);
+    if (this.maxFps > 0 && this.lockstepSteps === 0 && now - this.last < 1000 / this.maxFps - 2) {
+      requestAnimationFrame(this.frame);
+      return;
+    }
+    // The first frame's time stamp can be earlier than start(): never step time backwards.
+    const frameDt = Math.min(Math.max((now - this.last) / 1000, 0), 0.25);
     this.last = now;
     const dt = 1 / this.stepRate();
     let alpha = 1;

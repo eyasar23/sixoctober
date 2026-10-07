@@ -101,6 +101,40 @@ describe('rope swinging', () => {
     expect(states.has('swinging')).toBe(true);
   });
 
+  it('lets go of the rope the moment a swing touches the ground', () => {
+    const sim = makeSim(makeWorld(canyon));
+    sim.spawn(0, 2, 0, 0);
+    // A long rope whose arc dips below the street.
+    sim.state = 'swinging';
+    sim.rope.active = true;
+    sim.rope.anchor.set(-12, 30, -20);
+    sim.rope.pivot.set(0, 30, -20);
+    sim.rope.length = sim.bobPoint(sim.position.clone()).distanceTo(sim.rope.pivot);
+    sim.rope.targetLength = sim.rope.length;
+    sim.velocity.set(0, -12, -4);
+    let releasedOnLanding = false;
+    const events = run(sim, 1, () => ({ shift: true }), (s) => {
+      if (s.state !== 'swinging' && !releasedOnLanding) releasedOnLanding = !s.rope.active;
+    });
+    expect(types(events)).toContain('land');
+    expect(types(events)).toContain('ropeRelease');
+    expect(releasedOnLanding).toBe(true);
+    expect(sim.rope.active).toBe(false);
+    expect(types(events)).not.toContain('ropeAttach');
+  });
+
+  it('reports every rope release, also into a zip', () => {
+    const sim = inCanyon();
+    run(sim, 0.5, () => ({ shift: true }));
+    expect(sim.state).toBe('swinging');
+    const events = run(sim, 0.1, (t) => ({ shift: true, jumpPressed: pressAt(t, 0), aimOrigin: [0, 45, 6], aimDir: [1, 0.05, -1] }));
+    const order = types(events);
+    expect(order).toContain('zipStart');
+    // The swing rope is let go before the zip rope fires, so the zip rope is the one drawn.
+    expect(order.indexOf('ropeRelease')).toBeGreaterThanOrEqual(0);
+    expect(order.indexOf('ropeRelease')).toBeLessThan(order.indexOf('zipStart'));
+  });
+
   it('reports a missing anchor once and stays airborne', () => {
     const sim = makeSim(makeWorld());
     sim.spawn(0, 30, 0, 0);

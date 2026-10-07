@@ -19,7 +19,7 @@ import { palette } from '../../config/palette';
 import type { Tuning } from '../../config/tuning';
 import type { CityData } from '../cityGen';
 import { BILLBOARD_ATLAS, createBrandAtlas, SIGN_ATLAS } from './brandAtlas';
-import type { SceneLighting } from './lighting';
+import { GLSL_XRAY, type SceneLighting } from './lighting';
 
 const instancedVertex = /* glsl */ `
   attribute vec3 aColor;
@@ -28,13 +28,16 @@ const instancedVertex = /* glsl */ `
   varying vec3 vNormalLocal;
   varying vec3 vColor;
   varying vec4 vParams;
+  varying vec3 vWorldPos;
   #include <fog_pars_vertex>
   void main() {
     vUv = uv;
     vNormalLocal = normal;
     vColor = aColor;
     vParams = aParams;
-    vec4 mvPosition = viewMatrix * modelMatrix * instanceMatrix * vec4(position, 1.0);
+    vec4 world = modelMatrix * instanceMatrix * vec4(position, 1.0);
+    vWorldPos = world.xyz;
+    vec4 mvPosition = viewMatrix * world;
     gl_Position = projectionMatrix * mvPosition;
     #include <fog_vertex>
   }
@@ -46,15 +49,20 @@ const signFragment = /* glsl */ `
   uniform vec2 atlasGrid;
   uniform float glow;
   uniform float time;
+  uniform vec4 crimeZone;
   varying vec2 vUv;
   varying vec3 vNormalLocal;
   varying vec3 vColor;
   varying vec4 vParams; // brand, flicker seed, -, -
+  varying vec3 vWorldPos;
+  ${GLSL_XRAY}
   #include <fog_pars_fragment>
   void main() {
+    xray(vWorldPos);
     vec3 color;
-    // Old neon flickers now and then.
-    float flicker = step(0.04, fract(sin(floor(time * 9.0) + vParams.y * 31.7) * 43758.5));
+    // Old neon flickers now and then; near a crime it stutters faster and more often.
+    float near = crimeZone.z * (1.0 - smoothstep(crimeZone.w * 0.3, crimeZone.w, distance(vWorldPos.xz, crimeZone.xy)));
+    float flicker = step(0.04 + 0.3 * near, fract(sin(floor(time * (9.0 + 18.0 * near)) + vParams.y * 31.7) * 43758.5));
     if (abs(vNormalLocal.z) > 0.5) {
       float col = mod(vParams.x, atlasGrid.x);
       float row = floor(vParams.x / atlasGrid.x);
@@ -80,12 +88,15 @@ const billboardFragment = /* glsl */ `
   varying vec3 vNormalLocal;
   varying vec3 vColor;  // colour A
   varying vec4 vParams; // pattern, brand, seed, colour B index
+  varying vec3 vWorldPos;
   uniform vec3 neon[5];
+  ${GLSL_XRAY}
   #include <fog_pars_fragment>
 
   float hash(float n) { return fract(sin(n) * 43758.5453); }
 
   void main() {
+    xray(vWorldPos);
     vec2 uv = vUv;
     vec3 a = vColor;
     vec3 b = neon[int(vParams.w) % 5];
@@ -177,7 +188,9 @@ export function createProps(
   const antennas = city.roofProps.filter((p) => p.kind === 'antenna');
   const addProps = (geometry: typeof tankGeometry, color: string, list: typeof tanks, widthScale = 1): void => {
     if (list.length === 0) return;
-    const mesh = new InstancedMesh(geometry, new MeshLambertMaterial({ color }), list.length);
+    const material = new MeshLambertMaterial({ color });
+    lighting.addXray(material);
+    const mesh = new InstancedMesh(geometry, material, list.length);
     list.forEach((p, i) => {
       matrix.makeScale(p.sx * widthScale, p.sy, p.sz * widthScale).setPosition(p.x, p.y, p.z);
       mesh.setMatrixAt(i, matrix);

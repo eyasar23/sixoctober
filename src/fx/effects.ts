@@ -69,6 +69,7 @@ export class SpeedLinesEffect extends Effect {
 
 const gradeShader = /* glsl */ `
   uniform float strength;
+  uniform float tension;
   uniform vec3 shadowTint;
   uniform vec3 highlightTint;
 
@@ -79,6 +80,9 @@ const gradeShader = /* glsl */ `
     graded = mix(graded, graded * highlightTint, smoothstep(0.3, 1.0, l) * 0.35);
     vec3 s = clamp(graded, 0.0, 1.0);
     graded = mix(graded, s * s * (3.0 - 2.0 * s), 0.22);
+    // Near a crime: hot red-orange creeps into the shadows and mids.
+    vec3 warm = graded * vec3(1.14, 0.9, 0.82) + vec3(0.035, 0.004, -0.01) * (1.0 - smoothstep(0.0, 0.6, l));
+    graded = mix(graded, warm, tension);
     outputColor = vec4(mix(c, graded, strength), inputColor.a);
   }
 `;
@@ -90,6 +94,7 @@ export class ColorGradeEffect extends Effect {
       blendFunction: BlendFunction.NORMAL,
       uniforms: new Map<string, Uniform>([
         ['strength', new Uniform(1)],
+        ['tension', new Uniform(0)],
         ['shadowTint', new Uniform(new Color(shadow))],
         ['highlightTint', new Uniform(new Color(highlight))],
       ]),
@@ -98,6 +103,12 @@ export class ColorGradeEffect extends Effect {
 
   set strength(value: number) {
     const uniform = this.uniforms.get('strength');
+    if (uniform) uniform.value = value;
+  }
+
+  /** 0..1: warm crime tint. */
+  set tension(value: number) {
+    const uniform = this.uniforms.get('tension');
     if (uniform) uniform.value = value;
   }
 }

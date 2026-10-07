@@ -17,6 +17,96 @@ Sonraki ajan sohbet geçmişini görmez; bağlam bu dosya, `BRIEF.md` ve `PLAN.m
 
 ---
 
+## 2026-10-07 — Aşama 1B: modlar, ilk suç ve dövüş, HUD, menü
+
+- **Ajan / ortam:** Claude Code (bulut). Ubuntu 24.04, Node 22, ekran kartı yok.
+- **Branch / PR:** `claude/ecstatic-bardeen-6fncjx` → `main`, [PR #3](https://github.com/eyasar23/sixoctober/pull/3).
+- **Vercel:** PR'ın derlemesi başarılı (durum: Ready). Önizleme: https://sixoctober-git-claude-ecstatic-bardeen-6fncjx-emirhan-45f6.vercel.app
+  Ajan linki açamıyor (ağ politikası `*.vercel.app`'i engelliyor, 403); oyunun orada açıldığını Emirhan doğrulamalı.
+- **Görev metni:** `docs/asamalar/asama-1b.md`. **Sanat yönetimi belgesi:** `docs/art-direction.md` (yeni). Bundan sonra renk, yazı, efekt, kamera ve animasyonla ilgili her iş bu belgeye uyar; kural değişirse belge de güncellenir.
+- **Yeni bağımlılık:** yok.
+
+### Ne yapıldı
+
+**1A geri bildirimleri**
+
+- **A1 Halat:** yere değince ya da Shift bırakılınca kopar ve 0,25 sn'de bileğe geri sarılır (`rope.retractTime`). Sebep: iniş durumu değiştiriyor ama "halat bırakıldı" olayı çıkmıyordu; görsel halat bağlı kalıyordu. Artık her durum değişiminde `detachRope` çağrılıyor (testli).
+- **A2 Kamera** (`src/player/followCamera.ts` baştan yazıldı):
+  - Kamera yerden en az 1,1 m yukarıda. Aşağıdan bakış sınırlı (`camera.minPitch`); daha da yukarı bakınca kamera alçalmıyor, bakış yukarı eğiliyor.
+  - Araya giren bina artık kamerayı zıplatmıyor: kahramanın çevresi noktalı (dither) bir delikle yarı saydam oluyor (`GLSL_XRAY`, `camera.xray`). Kol sadece kamera binanın içine düşecekse kısalıyor.
+  - Fare tekerleği: yakın / orta / uzak. Fare 1,5 sn boşta kalınca kamera yavaşça hareket yönünün arkasına dönüyor (Ayarlar → "Camera turns behind you").
+  - Duruma göre kadraj: salınırken geri ve yukarı, yerde yakın, duvarda koşarken yana kayık, dövüşte geniş.
+- **A3 Bak ve fırla:** ortada küçük nişangâh. Nişangâhın altındaki çatı kenarı parlıyor, nişangâhın altında "E" çıkıyor. E: halat kahramanı kenara çeker, kenarın üstüne çömelir (`perch` durumu). Kenardan Space ile ileri atlayıp Shift ile salınıma geçiliyor. Menzil 80 m (`rope.launchRange`). Kenar seçimi `src/player/grapple.ts` → `findLedge` (testli).
+- **A4 Eğitim** (`src/game/tutorial.ts`): ilk açılışta 8 adım: sprint → zıplama → havada Shift ile salınma → bırakıp fırlama → E ile çatıya → duvarda koşma → mod değişimi → yumruk/tekme (idman mankeni çıkıyor). Enter adımı geçer, Backspace eğitimi bitirir; menüden "TUTORIAL" ile yeniden başlar. H kontrol kartını açıp kapatır. Bağlam ipuçları kısaldı.
+
+**Yeni özellikler**
+
+- **B1 ModeBand + Titan** (`src/modes/`): modlar eklenti gibi; yeni mod = `modes/` altında bir tanım dosyası + `MODE_LIST`'e bir satır. Tab ya da 1/2 ile geçiş.
+  - Geçiş 0,3 sn: çapraz çizgi roman paneli, nokta deseni, güç halkası, kısa ağır çekim, kostüm renklerinin değişmesi, zırh parçalarının tek tek takılması. Havada da çalışıyor, hız korunuyor (testli). Salınırken Titan'a geçince halat bırakılıyor; C'ye basınca kahraman yere çakılıyor.
+  - **Kanca:** mevcut camgöbeği set. Dövüşte E ile düşmanı halatla kendine çeker.
+  - **Titan (kehribar):** ağır ve yavaş koşu (32/48 km/h), Space basılı tutup bırakınca güçlü zıplama (3–32 m), havada C ile yere vuruş: 15 m'lik şok dalgası arabaları ve düşmanları savurur. Halat yok, duvara yavaş tırmanır. Vuruşları ağır ve alan hasarlı. Hoodie'nin üstünde zırh parçaları, daha geniş duruş. Değerler F1 → Titan.
+- **B2 HUD v1** (`src/ui/hud.ts`, `src/ui/minimap.ts`): durum, hız, can barı, mod halkası (mod renginde), suçun uzaklığı ve yönü, yuvarlak mini harita (bloklar, oyuncu oku, suç işareti), kısa ipuçları, düşmanların üstünde "!!", can ve K.O. işaretleri, kombo sayacı, Titan'ın şarj göstergesi. Ayarlar → "Show HUD" ile gizlenir.
+- **B3 Suç ve dövüş** (`src/crime/`, `src/combat/`):
+  - Suç 250–450 m uzakta, gökyüzüne uzanan kırmızı ışık sütunuyla başlıyor. Sahne: zırhlı araç soygunu, kendi çetemiz **The Static** (mor-siyah ceket, pembe bant, beyaz maske; 3 eleman + 1 iri "brute"). Bitince "CRIME STOPPED!" paneli, sayaç, 5 sn sonra başka yerde yeni suç.
+  - Suça yaklaştıkça gerilim: renk düzenlemesi sıcak kırmızıya kayar, çevredeki neonlar hızlı titrer, uzaktan alarm sesi gelir (`crime.tension`).
+  - Dövüş: sol tık yumruk, sağ tık tekme, 3 vuruşluk kombo (üçüncüsü bitirici), hedefe doğru atılma. Düşman saldırmadan önce "!!" çıkıyor; Q ile karşı saldırı. Vuruşta donma (hit-stop), sarsıntı, geri savrulma, K.O., kendi ses efekti kelimelerimiz (Türkçe yansımalar dahil: ŞAK!, KÜT!, GÜM-BÜM!).
+  - Düşman yapay zekâsı (`src/combat/enemy.ts`, testli durum makinesi): yaklaş, çevrende dolan, uyar, saldır, toparlan, sersemle, savrul, yere düş, kalk, K.O. Aynı anda en fazla bir düşman saldırır (`combat.maxAttackers`).
+  - Oyuncu hasar alıyor; 4 sn vuruş almazsa can yenileniyor. Can biterse 2,4 sn sonra yakındaki güvenli noktada doğuyor.
+  - Düşman vuruşu sadece aynı yükseklikteki kahramana ulaşıyor (`combat.attackHeight`); çetenin üstünden salınan kahraman vurulmuyor.
+- **B4 Açılış ekranı ve menü** (`src/ui/menu.ts`): kodla çizilmiş çizgi roman başlığı (yıldız patlaması, nokta deseni, hız çizgileri, dış görsel yok), geçici ad "PROJECT SIXOCTOBER". PLAY / TUTORIAL / CONTROLS / SETTINGS. Esc ile duraklatma menüsü. Ayarlar (`src/game/settings.ts`, tarayıcıda saklanır): grafik kalitesi, kare hızı (Film 24 / 30 / Smooth), animate on twos, fare hassasiyeti, Y ters, kamera arkaya dönsün, ekran sarsıntısı, ses, HUD, sinematik anlar.
+- **C İmza anlar** (hepsi Ayarlar → "Cinematic moments" ve F1'den kapatılabilir):
+  1. Havada mod değişimi şovu (yukarıda).
+  2. Son darbe: son düşmana vurunca ağır çekim, sinema çerçevesi, "MEANWHILE, ON THE AVENUE…" altyazı kutusu, "LIGHTS OUT!".
+  3. Kenara konma çekimi: E ile kenara konunca cadde boyunca bakan kısa çekim; rüzgâr kısılır, şehrin uğultusu öne çıkar.
+  4. Suça varış: çete uyanınca kısa ağır çekim, "4 OF THEM. ONE OF YOU." anlatı kutusu, hızlı yakınlaşma, liderin laf atması.
+  5. Açılış ekranı: kenarda çömelmiş kahraman, yavaşça dönen kamera.
+- **Figürler** (`src/figures/articulated.ts`): kahraman ve çete tek iskeletli mesh + kontur olarak koddan kuruluyor (figür başına 2 çizim çağrısı). Renkler "slot" ile değişiyor; kostüm değişimi yeni malzeme gerektirmiyor.
+- **Testler:** 73 Vitest testi (1A'da 36). Yeni: mod değişiminde hız korunuyor, kombo zamanlaması, düşman durum makinesi geçişleri, "bak ve fırla" hedef seçimi, inişte halat kopuyor, tam dövüş senaryosu, düşman vuruşunun yükseklik sınırı, pozların doğru yöne eğilmesi. Duman testi `tools/smoke/stage1b.mjs` (aşağıda).
+
+### Ölçümler (duman testi, yazılım WebGL)
+
+- `tools/smoke/stage1b.mjs` geçiyor (yaklaşık 9–10 dakika): başlık ekranı → eğitimin ilk adımları → nişangâhla kenar bulup E ile kenara konma → kenardan atlayıp salınma → havada Titan'a geçiş → yere vuruş → suçun caddesinin 230 m gerisinden salınarak suça varış → dövüşü bitirme. NaN yok, şehirden düşme yok, sayfa hatası yok.
+- Havada Titan'a geçiş: hız 21,6 → 22,8 m/s (halat bırakılıyor, hız korunuyor; düşerken yerçekimiyle biraz artıyor).
+- Dövüş (betik "!!" görünce Q'ya basıyor; son iki koşu): 14–17 isabet, 3–6 karşı saldırı, 2–3 halatla çekme, 4 K.O., suç durduruldu.
+- Çizim çağrısı 55–61 (dövüşte 4 düşmanla), yaklaşık 172 bin üçgen, simülasyon adımı 0,03–0,04 ms. 1A'da 75 çizim çağrısıydı; kahraman tek iskeletli mesh + kontur olunca azaldı. Her düşman 2 çizim çağrısı.
+- Aşama 1A duman testi (`tools/smoke/stage1a.mjs`) yeni açılış akışıyla da geçiyor: salınma ortalaması 131 km/h (en fazla 175), dalış 172, tırmanma en fazla 21 km/h. (`docs/previews/asama-1a/` görüntülerinin üzerine yazar; 1A kaydı olarak kalmaları için commit'lenmedi.)
+- Gerçek ekran kartında FPS ölçülmedi; yazılım render'ında saniyede 2–6 kare (bir şey göstermez).
+
+### Sonraki ajan için teknik notlar
+
+- `src/main.ts` sadece bileşenleri bağlıyor. Olaylardan efekt, ses, kamera ve yazıya giden her şey `src/game/feedback.ts`'te ("her eylem en az iki kanal" kuralı burada).
+- Simülasyon sırası her sabit adımda: girdi → `combat.step` → `sim.step` → şok dalgaları → `crime.step`. Dövüş hareketleri simülasyonda `action` durumu (`startAction`); düşmanlar simülasyondan bağımsız ama aynı çarpışma dünyasını kullanıyor.
+- Mod değeri değişince `sim.setMode` çağrılır; hız ellenmez, sadece duruma özel geçişler yapılır (salınım → havada, dalış → yere vuruş). Mod hareket değerleri `tuning.movement` üstüne yazılır (`refreshMovement`), yani F1'deki Movement değerleri Kanca'nındır, Titan'ınkiler F1 → Titan'da.
+- Titan'da Shift havada bir şey yapmaz (halat yok); zıplama tuşu basılı tutulunca `charge` durumu.
+- Arabalar GPU'da hareket ediyor; şok dalgası sadece shader'daki savrulma uniform'u (`traffic.shock`). Suç sahnesinin çevresinde trafik kesiliyor (`setClearZone`).
+- Ses efekti yazıları ve paneller DOM/CSS (`src/ui/comicFx.ts`, `comic.css`); 3D sahneye çizim çağrısı eklemiyor.
+- Kare hızı sınırı (`loop.maxFps`) ilk kare süresi eksi çıkınca kamerayı fırlatıyordu; kare süresi artık 0'ın altına inmiyor.
+- Poz açıları: pozitif X her eklemde "öne" (figürler −Z'ye bakar). Gövde ve boyun yukarı baktığı için onlarda işaret uygulanırken çevriliyor (`POINTS_UP`). 1A'dan beri gövde eğimleri ters çalışıyordu (sprint ve çömelme geriye yaslıyordu); bu oturumda düzeldi, `heroFigure.test.ts` denetliyor. Bütün gövdenin devrilmesi (`alignPitch`, `bodyPitch`) düz döndürme: pozitif = geriye.
+- HUD'daki tek seferlik CSS animasyonları bitince sınıfını bırakıyor (`replay` + `animationend`). Bırakmazsa HUD gizlenip açılınca animasyon baştan oynuyor.
+- Efektler (`FxPool`) ve düşmanın vuruş parlaması dünya saatiyle çalışıyor; ağır çekim onları da uzatıyor. Ağır çekimli anlarda parlamaları kısa tut.
+- `?test` kancaları genişledi: `window.__game.combat`, `crime`, `tutorial`, `menu`, `gameState()`, `play()` (eğitimsiz başlatır).
+- Ayarlar tarayıcıda `sixoctober.settings.v1`, eğitim bilgisi `sixoctober.tutorialDone` anahtarında. Eğitimi baştan görmek için menü → TUTORIAL.
+
+### Ne kaldı
+
+- Emirhan'ın önizlemede görsel kontrolü ve his anketi (PR'da).
+- Gerçek ekran kartında FPS ölçümü.
+
+### Bilinen sorunlar
+
+- Halat salınım sırasında binaların içinden geçebilir (sarılma yok). Duvarda koşma ve tırmanma köşeyi dönmüyor (1A'dan).
+- Lamba direkleri, tabelalar ve arabalar çarpışmasız. Şok dalgası arabaları sadece görüntüde savuruyor (shader); kahramana ya da düşmana çarpmıyorlar.
+- Düşmanlar tırmanamıyor, halat kullanmıyor: kahraman çatıdayken aşağıda bekliyorlar (Kanca'da E ile çekilebilirler).
+- "Bak ve fırla" sadece 80 m menzildeki, üstü boş kenarlarda çalışıyor; çok yüksek kulelerin tepesi menzil dışında.
+- Titan'la şehirde dolaşmak bilerek yavaş (halat yok); anket cevabına göre ayarlanacak.
+- Duman testi suça gidişi suçun caddesinin 230 m gerisinden başlatıyor (kahramanı oraya koyuyor). Betik salınma hızında köşe dönemiyor; kavşaklardan geçen rota denemeleri yön kaybetti. Oyuncu için bir sorun değil, betiğin sınırı.
+- Başsız tarayıcıda son darbenin sinema çerçevesi ve "CRIME STOPPED" paneli geç görünüyor (sayfa saniyede 2–6 kare çiziyor, CSS geçişleri kare kare ilerliyor). Gerçek ekran kartında zamanlamaya bakılmalı.
+- JS paketi 984 KB (gzip'li 298 KB); Vite'nin boyut uyarısı three.js ve postprocessing'den.
+
+### Sıradaki adım
+
+Aşama 2 (his ayarı): Emirhan'ın 1B his anketi cevapları ve F1 "Copy values" çıktısıyla salınma, kamera, dövüş zamanlaması ve mod geçişi ayarlanır.
+
 ## 2026-10-06 — Aşama 1A: hareket çekirdeği ve görsel stil
 
 - **Ajan / ortam:** Claude Code (bulut). Ubuntu 24.04, Node 22, ekran kartı yok.

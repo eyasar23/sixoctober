@@ -80,6 +80,7 @@ export function createDebugPanel(tuning: Tuning, stats: PanelStats, actions: Pan
     ['releaseForwardBoost', [0, 50, 1]],
     ['releaseUpBoost', [0, 15, 0.5]],
     ['ropeJumpUp', [0, 20, 0.5]],
+    ['retractTime', [0.05, 0.6, 0.01]],
     ['autoChain'],
     ['autoReleaseAngle', [20, 90, 1]],
     ['reattachDelay', [0, 0.5, 0.01]],
@@ -103,6 +104,104 @@ export function createDebugPanel(tuning: Tuning, stats: PanelStats, actions: Pan
     ['zipCooldown', [0, 3, 0.05]],
     ['showZipTarget'],
   ]);
+  group(rope, 'panel.rope.launch', r, [
+    ['launchRange', [20, 150, 1]],
+    ['launchSpeed', [60, 250, 1]],
+    ['launchCooldown', [0, 2, 0.05]],
+    ['perchHopTime', [0.05, 0.6, 0.01]],
+    ['perchLeapForward', [0, 30, 0.5]],
+    ['perchLeapHeight', [0, 8, 0.1]],
+    ['showLedgeHighlight'],
+  ]);
+
+  const titan = gui.addFolder(tKey('panel.titan'));
+  titan.close();
+  const titanMove = tuning.titan.movement as unknown as Record<string, unknown>;
+  for (const [key, range] of [
+    ['runSpeed', [10, 80, 1]],
+    ['sprintSpeed', [10, 100, 1]],
+    ['runAccelTime', [0.05, 2, 0.01]],
+    ['turnGrip', [1, 30, 0.5]],
+    ['jumpHeight', [0.5, 6, 0.1]],
+    ['gravity', [10, 60, 1]],
+    ['climbSpeed', [2, 30, 1]],
+    ['heroLandSpeed', [5, 60, 1]],
+  ] as Array<[string, Range]>) {
+    add(titan, titanMove, key, range);
+  }
+  const ti = tuning.titan as unknown as Record<string, unknown>;
+  for (const [key, range] of [
+    ['chargeTime', [0.2, 3, 0.05]],
+    ['superJumpMin', [0, 10, 0.5]],
+    ['superJumpMax', [5, 80, 1]],
+    ['superJumpForward', [0, 30, 0.5]],
+    ['poundHang', [0, 0.6, 0.01]],
+    ['poundSpeed', [20, 120, 1]],
+    ['shockRadius', [3, 40, 0.5]],
+    ['shockForce', [0, 60, 1]],
+    ['shockDamage', [0, 120, 1]],
+    ['landShockImpact', [5, 80, 1]],
+  ] as Array<[string, Range]>) {
+    add(titan, ti, key, range);
+  }
+
+  const fight = group(gui, 'panel.combat', tuning.combat as unknown as Record<string, unknown>, [
+    ['punchTime', [0.1, 1, 0.01]],
+    ['kickTime', [0.1, 1, 0.01]],
+    ['finisherExtra', [0, 0.5, 0.01]],
+    ['hitAt', [0.1, 0.9, 0.01]],
+    ['chainAt', [0.2, 1, 0.01]],
+    ['comboWindow', [0, 1, 0.01]],
+    ['punchDamage', [0, 60, 1]],
+    ['kickDamage', [0, 60, 1]],
+    ['finisherDamage', [0, 100, 1]],
+    ['reach', [0.5, 5, 0.05]],
+    ['lungeRange', [0, 15, 0.5]],
+    ['knockback', [0, 20, 0.5]],
+    ['finisherKnockback', [0, 30, 0.5]],
+    ['finisherLift', [0, 20, 0.5]],
+    ['heavyTimeScale', [1, 3, 0.05]],
+    ['heavyDamageScale', [1, 4, 0.05]],
+    ['heavyArea', [0, 8, 0.1]],
+    ['hitStop', [0, 0.2, 0.005]],
+    ['finisherHitStop', [0, 0.3, 0.005]],
+    ['counterRange', [1, 10, 0.1]],
+    ['counterDamage', [0, 120, 1]],
+    ['pullRange', [5, 60, 1]],
+    ['pullAngle', [2, 30, 0.5]],
+    ['playerHealth', [10, 500, 5]],
+    ['regenDelay', [0, 20, 0.5]],
+    ['regenRate', [0, 60, 1]],
+  ]);
+  group(fight, 'panel.combat.enemies', tuning.combat as unknown as Record<string, unknown>, [
+    ['enemyHealth', [5, 400, 5]],
+    ['bruteHealth', [5, 600, 5]],
+    ['enemyRunSpeed', [1, 12, 0.1]],
+    ['aggroRange', [5, 80, 1]],
+    ['engageRange', [1.5, 8, 0.1]],
+    ['warnTime', [0.15, 2, 0.05]],
+    ['bruteWarnTime', [0.15, 2, 0.05]],
+    ['attackReach', [1, 5, 0.1]],
+    ['attackHeight', [0.5, 6, 0.1]],
+    ['enemyDamage', [0, 60, 1]],
+    ['bruteDamage', [0, 80, 1]],
+    ['attackCooldownMin', [0, 6, 0.1]],
+    ['attackCooldownMax', [0, 8, 0.1]],
+    ['maxAttackers', [1, 4, 1]],
+  ]);
+
+  group(gui, 'panel.crime', tuning.crime as unknown as Record<string, unknown>, [
+    ['minDistance', [50, 600, 10]],
+    ['maxDistance', [100, 800, 10]],
+    ['engageDistance', [10, 120, 1]],
+    ['nextCrimeDelay', [0, 30, 0.5]],
+    ['pillar'],
+    ['tension'],
+    ['arrivalBeat'],
+    ['finalBlowCinematic'],
+    ['finalBlowSlowMo', [0.02, 1, 0.01]],
+    ['finalBlowTime', [0.2, 3, 0.05]],
+  ]);
 
   group(gui, 'panel.camera', tuning.camera as unknown as Record<string, unknown>, [
     ['distance', [2, 15, 0.1]],
@@ -120,6 +219,23 @@ export function createDebugPanel(tuning: Tuning, stats: PanelStats, actions: Pan
     ['followDamping', [2, 40, 1]],
     ['shake'],
     ['shakeIntensity', [0, 2, 0.05]],
+    ['minPitch', [-1.2, 0.3, 0.01]],
+    ['restPitch', [-0.3, 1, 0.01]],
+    ['groundClearance', [0, 4, 0.05]],
+    ['autoAlignDelay', [0, 5, 0.1]],
+    ['zoomNear', [0.3, 1, 0.01]],
+    ['zoomFar', [1, 3, 0.05]],
+    ['groundDistance', [0.4, 1.5, 0.01]],
+    ['swingDistance', [0.6, 2.5, 0.01]],
+    ['swingHeight', [0, 5, 0.1]],
+    ['swingPitch', [-0.3, 0.6, 0.01]],
+    ['airDistance', [0.6, 2, 0.01]],
+    ['wallRunSide', [0, 5, 0.1]],
+    ['combatDistance', [0.6, 2.5, 0.01]],
+    ['framingDamping', [0.5, 10, 0.1]],
+    ['xray', [0, 1, 0.05]],
+    ['xrayRadius', [0.3, 4, 0.05]],
+    ['perchCinematic'],
   ]);
 
   const effects = group(gui, 'panel.effects', tuning.fx as unknown as Record<string, unknown>, [
@@ -136,6 +252,10 @@ export function createDebugPanel(tuning: Tuning, stats: PanelStats, actions: Pan
     ['landingDust'],
     ['hitStop', [0, 0.2, 0.01]],
     ['comicImpact'],
+    ['modeSwitchShow'],
+    ['modeSwitchSlowMo', [0.05, 1, 0.01]],
+    ['modeSwitchTime', [0, 1.5, 0.01]],
+    ['crimeTint', [0, 1, 0.05]],
   ]);
   group(effects, 'panel.effects.hero', tuning.hero as unknown as Record<string, unknown>, [
     ['animateOnTwos'],
@@ -161,6 +281,7 @@ export function createDebugPanel(tuning: Tuning, stats: PanelStats, actions: Pan
     quality.add(stats, key).name(tKey(`panel.${key}`)).listen().disable();
   }
   add(quality, tuning.debug as unknown as Record<string, unknown>, 'showFps');
+  add(quality, tuning.ui as unknown as Record<string, unknown>, 'hud');
   add(quality, tuning.debug as unknown as Record<string, unknown>, 'slowMoScale', [0.05, 1, 0.05]);
 
   gui.add({ respawn: () => actions.respawn() }, 'respawn').name(t('panel.respawn'));
