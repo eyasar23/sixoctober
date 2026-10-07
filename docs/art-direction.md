@@ -131,9 +131,9 @@ Gece yarısı şehir nefes alıyor; kahraman küçük ama durdurulamaz derecede 
 | An | Ne olur | Kapatma |
 |---|---|---|
 | Havada mod değişimi | Çapraz panel + noktalar, güç halkası, ağır çekim, zırhın parça parça takılması | Ayarlar → Cinematic moments; F1 → Effects → Mode switch show |
-| Son darbe | Ağır çekim, sinema çerçevesi, altyazı kutusu, "LIGHTS OUT!" | Ayarlar → Cinematic moments; F1 → Crime |
+| Son darbe | Ağır çekim, sinema çerçevesi, altyazı kutusu, "LIGHTS OUT!" | Ayarlar → Cinematic moments; F1 → Crime → Last blow: slow-mo frame |
 | Kenara konma | Cadde boyunca bakan kısa çekim, sessizlik ve şehir uğultusu | Ayarlar → Cinematic moments; F1 → Camera → Ledge landing shot |
-| Suça varış | Kısa ağır çekim, "4 OF THEM. ONE OF YOU." anlatı kutusu, hızlı yakınlaşma, liderin laf atması | Ayarlar → Cinematic moments; F1 → Crime → Arrival |
+| Suça varış | Kısa ağır çekim, "4 OF THEM. ONE OF YOU." anlatı kutusu, hızlı yakınlaşma, liderin laf atması | Ayarlar → Cinematic moments; F1 → Crime → Arrival: beat and caption |
 | Açılış ekranı | Kenarda çömelmiş kahraman, yavaş dönen kamera | — |
 
 ## 8. Yeni bir şey eklerken kontrol listesi
